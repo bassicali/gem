@@ -1,0 +1,6 @@
+[] [22:05:18.253] [ERROR] TTF_OpenFont failed for naub: Couldn't open Roboto-Regular.ttf
+
+[] [22:05:18.255] [ERROR] TTF_OpenFont failed: Couldn't open Roboto-Regular.ttf
+
+[] [22:07:58.133] [ERROR] UI thread could not be shutdown gracefully
+

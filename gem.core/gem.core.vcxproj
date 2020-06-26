@@ -1,0 +1,139 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Include\Core\APU.h" />
+    <ClInclude Include="Include\Core\APUEmitters.h" />
+    <ClInclude Include="Include\Core\APURegisters.h" />
+    <ClInclude Include="Include\Core\CartridgeReader.h" />
+    <ClInclude Include="Include\Core\CGBRegisters.h" />
+    <ClInclude Include="Include\Core\Gem.h" />
+    <ClInclude Include="Include\Core\GemConstants.h" />
+    <ClInclude Include="Include\Core\GPU.h" />
+    <ClInclude Include="Include\Core\GPURegisters.h" />
+    <ClInclude Include="Include\Core\Instruction.h" />
+    <ClInclude Include="Include\Core\InterruptController.h" />
+    <ClInclude Include="Include\Core\Joypad.h" />
+    <ClInclude Include="Include\Core\MBC.h" />
+    <ClInclude Include="Include\Core\MMU.h" />
+    <ClInclude Include="Include\Core\Serial.h" />
+    <ClInclude Include="Include\Core\Timers.h" />
+    <ClInclude Include="Include\Core\Z80.h" />
+    <ClInclude Include="Include\DArray.h" />
+    <ClInclude Include="Include\DecodedInstruction.h" />
+    <ClInclude Include="Include\Disassembler.h" />
+    <ClInclude Include="Include\IAudioQueue.h" />
+    <ClInclude Include="Include\IDrawTarget.h" />
+    <ClInclude Include="Include\IMappedComponent.h" />
+    <ClInclude Include="Include\Logging.h" />
+    <ClInclude Include="Include\Colour.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Source\Core\APU.cpp" />
+    <ClCompile Include="Source\Core\APUEmitters.cpp" />
+    <ClCompile Include="Source\Core\APURegisters.cpp" />
+    <ClCompile Include="Source\Core\CartridgeReader.cpp" />
+    <ClCompile Include="Source\Core\CGBRegisters.cpp" />
+    <ClCompile Include="Source\Core\Gem.cpp" />
+    <ClCompile Include="Source\Core\GPU.cpp" />
+    <ClCompile Include="Source\Core\GPURegisters.cpp" />
+    <ClCompile Include="Source\Core\InterruptController.cpp" />
+    <ClCompile Include="Source\Core\Joypad.cpp" />
+    <ClCompile Include="Source\Core\MBC.cpp" />
+    <ClCompile Include="Source\Core\MMU.cpp" />
+    <ClCompile Include="Source\Core\Serial.cpp" />
+    <ClCompile Include="Source\Core\Timers.cpp" />
+    <ClCompile Include="Source\Core\Z80.cpp" />
+    <ClCompile Include="Source\DecodedInstruction.cpp" />
+    <ClCompile Include="Source\Disassembler.cpp" />
+    <ClCompile Include="Source\Logging.cpp" />
+    <ClCompile Include="Source\Colour.cpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{26C35621-FC07-43AB-BC05-1DDDDACBA283}</ProjectGuid>
+    <RootNamespace>gem</RootNamespace>
+    <SccProjectName>SAK</SccProjectName>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccProvider>SAK</SccProvider>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <TargetExt>.lib</TargetExt>
+    <IntDir>$(SolutionDir)bin\Intermediate\$(Configuration)-$(Platform)\gem.core\</IntDir>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\gem.core\</OutDir>
+    <IncludePath>$(ProjectDir)Include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\gem.core\</OutDir>
+    <IntDir>$(SolutionDir)bin\Intermediate\$(Configuration)-$(Platform)\gem.core\</IntDir>
+    <TargetExt>.lib</TargetExt>
+    <IncludePath>$(ProjectDir)Include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <SupportJustMyCode>false</SupportJustMyCode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PreprocessorDefinitions>_MBCS;ELPP_DISABLE_LOGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
