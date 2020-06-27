@@ -48,6 +48,8 @@ struct Breakpoint
 	}
 };
 
+// Used to pass information between console and ui thread. Console thread
+// set Changed=true when it was window loop to action on it.
 struct ThreadSyncState
 {
 	bool Reset;

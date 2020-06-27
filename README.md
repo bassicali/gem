@@ -1,10 +1,7 @@
 
 
+![gem](images/hex-gem.png)
 # Gem - Game Boy Color Emulator
-
-## Code Layout
-- **gem.core**: All the hardware emulation logic is in this library. It has no dependencies and is written in portable C++.
-- **gem.cmd**: A terminal/console front-end for the core that includes a bunch of commands for debugging the emualation. SDL2 and SDL_ttf are used for audio/video and it only builds on windows for now.
 
 ## Features
 - A slew of commands for debugging the emulation. See table below.
@@ -20,7 +17,7 @@
 | Reset| `reset` | Reset emulation state as if the ROM was just loaded. |
 | Save Game  | `save` | If the ROM type has external RAM or a real-time clock, their states are saved to disk (automatically happens on shutdown too). |
 | Exit  | `exit` | Close the emulator (can also close the console or viewport windows instead) |
-| Print Info  | `p\|print cpu|gpu|rom|timers` | Print the state of one of the components to the console. |
+| Print Info  | `p\|print cpu\|gpu\|rom\|timers` | Print the state of one of the components to the console. |
 | Stepping  | `step \| stepn n \| vblank` | Tick the core once, `n` times or until a vblank occurs. Emulation must be paused first. |
 | Toggle Breakpoint  | `bp addr 0\|1` | Set or unset (depending on second arg) a breakpoint at the given address. |
 | Delete Breakpoint  | `bp addr del` | Delete the breakpoint so it's no longer being checked. |
@@ -47,14 +44,28 @@
 | `--pause` | Pause after loading a ROM file. |
 | `--res-scale=...` | Multiply the window size by an integer to increase its size |
 
+## Keyboard Mapping
+| Game Boy | Keyboard |
+| --- | --- |
+| Arrow buttons | Arrow keys |
+| A | Space |
+| B | Left Shift |
+| Start | Enter |
+| Select | Back Slash ('\\') |
+
 ## Screenshots
+![Warioland 3](images/wl3-screen.png)
+![Tetris DX](images/tetris-screen.png)
+![Memory dump](images/memdump-screen.png)
+
+## Code Layout
+- **gem.core**: All the hardware emulation logic is in this library. It has no dependencies and is written in portable C++.
+- **gem.cmd**: A terminal/console front-end for the core that includes a bunch of commands for debugging the emualation. SDL2 and SDL_ttf are used for audio/video and it only builds on windows for now.
 
 ## Projects
 - [SDL2](https://www.libsdl.org/download-2.0.php)
 - [SDL_ttf](https://www.libsdl.org/projects/SDL_ttf/) + [FreeType](https://www.freetype.org/index.html)
 - [Boost](https://www.boost.org/)
-- [Cascadia Code font]()
+- [Cascadia Code font](https://github.com/microsoft/cascadia-code)
 
-## Known Issues
-- Audio in sound channel 4 sounds kinda garbled up
-- Obscure hardware behaviours aren't emulated in gem so some games may not work for this reason
+Thank you :)

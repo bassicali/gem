@@ -38,5 +38,6 @@
 
 .vs/*
 bin/*
+.cmake/**
 
 !thirdparty/**
