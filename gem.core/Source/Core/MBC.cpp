@@ -43,9 +43,9 @@ void MBC::Reset()
 
 void MBC::SetCartridge(std::shared_ptr<CartridgeReader> ptr)
 {
-	if (cart && cp.NumRamBanks > 0)
+	if (cart && cp.NumRAMBanks > 0)
 	{
-		for (int i = 0; i < cp.NumRamBanks; i++)
+		for (int i = 0; i < cp.NumRAMBanks; i++)
 			extRAMBanks[i].Fill(0);
 
 		cart.reset();
@@ -54,11 +54,11 @@ void MBC::SetCartridge(std::shared_ptr<CartridgeReader> ptr)
 	cart = ptr;
 	cp = ptr->Properties();
 
-	assert(cp.NumRamBanks >= 0 && cp.NumRamBanks <= 4);
+	assert(cp.NumRAMBanks >= 0 && cp.NumRAMBanks <= 4);
 
-	if (cp.NumRamBanks > 0)
+	if (cp.NumRAMBanks > 0)
 	{
-		for (int i = 0; i < cp.NumRamBanks; i++)
+		for (int i = 0; i < cp.NumRAMBanks; i++)
 		{
 			if (!extRAMBanks[i].IsAllocated())
 			{
@@ -86,7 +86,7 @@ void MBC::WriteSaveGame()
 	WRITE(&curr, 1)
 	WRITE(&lastLatchedTime, sizeof(tm));
 
-	for (int i = 0; i < cp.NumRamBanks; i++)
+	for (int i = 0; i < cp.NumRAMBanks; i++)
 	{
 		assert(extRAMBanks[i].IsAllocated());
 		curr = 0xEE;
@@ -128,7 +128,7 @@ bool MBC::LoadSaveGame()
 
 	READ(&lastLatchedTime, sizeof(tm))
 
-	for (int i = 0; i < cp.NumRamBanks; i++)
+	for (int i = 0; i < cp.NumRAMBanks; i++)
 	{
 		READ(&curr, 1)
 
@@ -397,6 +397,9 @@ void MBC::WriteByte(uint16_t addr, uint8_t value)
 			{
 				assert(false);
 			}
+
+			if (romBank >= cp.NumROMBanks)
+				romBank = cp.NumROMBanks - 1;
 
 			break;
 		}

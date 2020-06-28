@@ -1,6 +1,6 @@
 
 
-![gem](images/hex-gem.png)
+<img align="left" width="64" height="64" src="images/hex-gem.png">
 # Gem - Game Boy Color Emulator
 
 ## Features
@@ -54,9 +54,9 @@
 | Select | Back Slash ('\\') |
 
 ## Screenshots
-![Warioland 3](images/wl3-screen.png)
-![Tetris DX](images/tetris-screen.png)
-![Memory dump](images/memdump-screen.png)
+<img width="50%" height="50%" src="images/wl3-screen.png">
+<img width="50%" height="50%" src="images/tetris-screen.png">
+<img width="50%" height="50%" src="images/memdump-screen.png">
 
 ## Code Layout
 - **gem.core**: All the hardware emulation logic is in this library. It has no dependencies and is written in portable C++.

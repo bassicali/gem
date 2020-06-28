@@ -2,6 +2,7 @@
 #include <cassert>
 #include <filesystem>
 
+#include "Logging.h"
 #include "Core/CartridgeReader.h"
 
 using namespace std;
@@ -45,6 +46,13 @@ void CartridgeReader::LoadFile(const char* file)
 	fin.close();
 
 	DecodeHeader(romData + 0x100, cartProps);
+
+	if (cartProps.ROMSize > size)
+	{
+		LOG_CONS("ROM size from cartridge header is larger than actual file size");
+		cartProps.ROMSize = size;
+		cartProps.NumROMBanks = size / 0x4000;
+	}
 
 	if (cartProps.ExtRamHasBattery)
 	{
@@ -109,31 +117,48 @@ void CartridgeReader::DecodeHeader(const uint8_t header_data[], CartridgePropert
 
 	uint8_t rom_size_flag = header_data[0x48];
 	if (rom_size_flag <= 7)
-		props.RomSize = 32 << rom_size_flag;
+	{
+		props.ROMSize = 32'768 << rom_size_flag;
+		props.NumROMBanks = rom_size_flag > 0
+								? (4 << (rom_size_flag - 1)) : 2;
+	}
 	else if (rom_size_flag == 0x52)
-		props.RomSize = 0; // TODO
+	{
+		props.NumROMBanks = 72;
+		props.ROMSize = props.NumROMBanks * 0x4000;
+	}
+	else if (rom_size_flag == 0x53)
+	{
+		props.NumROMBanks = 80;
+		props.ROMSize = props.NumROMBanks * 0x4000;
+	}
+	else if (rom_size_flag == 0x54)
+	{
+		props.NumROMBanks = 96;
+		props.ROMSize = props.NumROMBanks * 0x4000;
+	}
 
 	uint8_t ram_size_flag = header_data[0x49];
 
 	if (ram_size_flag == 0x01)
 	{
-		props.NumRamBanks = 1; // 2KB
-		props.RamSize = 2;
+		props.NumRAMBanks = 1; // 2KB
+		props.RAMSize = 2;
 	}
 	else if (ram_size_flag == 0x02)
 	{
-		props.NumRamBanks = 1; // 8KB
-		props.RamSize = 8;
+		props.NumRAMBanks = 1; // 8KB
+		props.RAMSize = 8;
 	}
 	else if (ram_size_flag == 0x03)
 	{
-		props.NumRamBanks = 4; // 32 KB
-		props.RamSize = 32;
+		props.NumRAMBanks = 4; // 32 KB
+		props.RAMSize = 32;
 	}
 	else if (ram_size_flag == 0x10)
 	{
-		props.NumRamBanks = 16; // 128 KB
-		props.RamSize = 128;
+		props.NumRAMBanks = 16; // 128 KB
+		props.RAMSize = 128;
 	}
 	else if (ram_size_flag != 0)
 	{

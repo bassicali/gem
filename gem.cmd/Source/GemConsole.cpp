@@ -357,8 +357,8 @@ void GemConsole::PrintAPUInfo(Gem& gem)
 void GemConsole::PrintROMInfo(Gem& gem)
 {
 #define ROM_TITLE		left << setw(10) << (gem.IsROMLoaded() ? gem.GetCartridgeReader()->Properties().Title : "") << setw(14) << " "
-#define ROM_SIZE		left << setw(2) << (gem.IsROMLoaded() ? gem.GetCartridgeReader()->Properties().RomSize : 0) << setw(22) << " KB"
-#define RAM_SIZE		left << setw(2) << (gem.IsROMLoaded() ? gem.GetCartridgeReader()->Properties().RamSize : 0) << setw(22) << " KB"
+#define ROM_SIZE		left << setw(2) << (gem.IsROMLoaded() ? gem.GetCartridgeReader()->Properties().ROMSize : 0) << setw(22) << " KB"
+#define RAM_SIZE		left << setw(2) << (gem.IsROMLoaded() ? gem.GetCartridgeReader()->Properties().RAMSize : 0) << setw(22) << " KB"
 #define ROM_TYPE		left << setw(24) << (gem.IsROMLoaded() ? CartridgeReader::ROMTypeString(gem.GetCartridgeReader()->Properties().Type) : "") << setw(22)
 
 	cout << LABEL_COLOR << " Title        " << VALUE_COLOR << ROM_TITLE << endl;

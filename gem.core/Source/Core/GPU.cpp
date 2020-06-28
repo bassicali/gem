@@ -464,15 +464,22 @@ void GPU::RenderSpriteLine()
 			// For sprites that are 16px tall, any pixels in the lower half of the sprite
 			// will be located 16 bytes after the top half's tile. In other words, the top and 
 			// bottom are stored as back-to-back tiles
-			int offset = 0;
-			if (sprite_height == 16 && pixel_row >= 8)
+			int tile = sprite.Tile;
+			if (sprite_height == 16)
 			{
-				pixel_row -= 8;
-				offset = 16;
+				if (pixel_row >= 8)
+				{
+					tile |= 0x01;
+					pixel_row -= 8;
+				}
+				else
+				{
+					tile &= 0xFE;
+				}
 			}
 
 			// It seems sprite tile data is always at located in 8000h-8FFFh, the offset into VRAM is 0
-			int data_index = (sprite.Tile * 16) + (pixel_row * 2) + offset;
+			int data_index = (tile * 16) + (pixel_row * 2);
 
 			uint8_t b0;
 			uint8_t b1;
@@ -955,15 +962,22 @@ void GPU::DrawSpritesViewBuffer(IDrawTarget& target)
 			}
 			else
 			{
-				int tile_row = ln % sprite_height;
-				int offset = 0;
-				if (sprite_height == 16 && tile_row >= 8)
+				int pixel_row = ln;
+				int tile = sprite.Tile;
+				if (sprite_height == 16)
 				{
-					tile_row -= 8;
-					offset = 16;
+					if (pixel_row >= 8)
+					{
+						tile |= 0x01;
+						pixel_row -= 8;
+					}
+					else
+					{
+						tile &= 0xFE;
+					}
 				}
 
-				int tile_data_vram_index = (sprite.Tile * 16) + (tile_row * 2) + offset;
+				int tile_data_vram_index = (tile * 16) + (pixel_row * 2);
 
 				uint8_t b0 = 0;
 				uint8_t b1 = 0;

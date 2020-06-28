@@ -151,8 +151,8 @@ bool GemApp::InitCore()
 		shared_ptr<CartridgeReader> rom_reader = core.GetCartridgeReader();
 		GemConsole::PrintLn(" ROM file loaded");
 		GemConsole::PrintLn(" Title: %s", rom_reader->Properties().Title);
-		GemConsole::PrintLn(" ROM Size: %d KB", rom_reader->Properties().RomSize);
-		GemConsole::PrintLn(" RAM Size: %d KB", rom_reader->Properties().RamSize);
+		GemConsole::PrintLn(" ROM Size: %d KB", rom_reader->Properties().ROMSize);
+		GemConsole::PrintLn(" RAM Size: %d KB", rom_reader->Properties().RAMSize);
 		GemConsole::PrintLn(" Cartridge: %s", CartridgeReader::ROMTypeString(rom_reader->Properties().Type).c_str());
 		GemConsole::PrintLn(" CGB: %s", CartridgeReader::CGBSupportString(rom_reader->Properties().CGBCompatability).c_str());
 		GemConsole::PrintLn("");

@@ -56,9 +56,9 @@ struct CartridgeProperties
 			HasExtRam(false),
 			ExtRamHasBattery(false),
 			HasRTC(false),
-			NumRamBanks(0),
-			RomSize(0),
-			RamSize(0)
+			NumRAMBanks(0),
+			ROMSize(0),
+			RAMSize(0)
 	{
 		memset(Title, 0, 16 * sizeof(char));
 	}
@@ -71,9 +71,10 @@ struct CartridgeProperties
 	bool HasRTC;
 
 	char Title[16];
-	int RomSize;
-	int NumRamBanks;
-	int RamSize;
+	int NumROMBanks;
+	int ROMSize;
+	int NumRAMBanks;
+	int RAMSize;
 };
 
 class CartridgeReader
