@@ -1,7 +1,6 @@
 
 
-<img align="left" width="64" height="64" src="images/hex-gem.png">
-# Gem - Game Boy Color Emulator
+<img align="left" width="64" height="64" src="images/hex-gem.png"> <h1>Gem - Game Boy Color Emulator<h1>
 
 ## Features
 - A slew of commands for debugging the emulation. See table below.
@@ -20,11 +19,9 @@
 | Print Info  | `p\|print cpu\|gpu\|rom\|timers` | Print the state of one of the components to the console. |
 | Stepping  | `step \| stepn n \| vblank` | Tick the core once, `n` times or until a vblank occurs. Emulation must be paused first. |
 | Toggle Breakpoint  | `bp addr 0\|1` | Set or unset (depending on second arg) a breakpoint at the given address. |
-| Delete Breakpoint  | `bp addr del` | Delete the breakpoint so it's no longer being checked. |
-| List Breakpoints  | `bp` |  |
 | Toggle Memory Breakpoints | `wbp\|rbp addr [value]` | Pause/break when a write or read occurs at the given address. If a value is given it must match what's being written or read. |
-| Delete Memory Breakpoints | `wbp\|rbp addr del` | Delete the breakpoint so it's no longer being checked. |
-| List Memory Breakpoints | `wbp\|rbp` |  |
+| Delete Breakpoint  | `bp\|wbp\|rbp addr del` | Delete the breakpoint so it's no longer being checked. |
+| List Breakpoints  | `bp\|wbp\|rbp` |  |
 | Memory Dump | `memdump addr n` | Print out a hex dump of `n` bytes of memory at the given address. |
 | Colour Correction | `ccm 0\|1` | 0: washout colours similar to the physical LCD screen, 1: multiply by 8 (more vibrant colours) |
 | Brightness | `brightness 1.0-` | Set a brightness factor (colur channels are multiplied by this number) |
@@ -67,5 +64,6 @@
 - [SDL_ttf](https://www.libsdl.org/projects/SDL_ttf/) + [FreeType](https://www.freetype.org/index.html)
 - [Boost](https://www.boost.org/)
 - [Cascadia Code font](https://github.com/microsoft/cascadia-code)
+- [BGB Emulator Debugger](https://bgb.bircd.org/) - super useful during the development of gem.
 
 Thank you :)
