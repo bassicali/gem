@@ -26,7 +26,7 @@
 | Colour Correction | `ccm 0\|1` | 0: washout colours similar to the physical LCD screen, 1: multiply by 8 (more vibrant colours) |
 | Brightness | `brightness 1.0-` | Set a brightness factor (colur channels are multiplied by this number) |
 | GPU Debug Views  | `show\|hide tiles\|palettes\|sprites` | Show or hide one of the debug GPU's debug views. |
-| Toggle Sound Channels | `chan 0\|1\|2\|3 0\|1` | Turn one of the four sound channels on or off. |
+| Toggle Sound Channels | `chan 1\|2\|3\|4 0\|1` | Turn one of the four sound channels on or off. |
 | Muting | `mute\|unmute` |  |
 | Trace Files | `trace 0\|1` | Start or stop appending to a trace file that records the cpu's state (file saved to cwd ). |
 | Screenshot | `screenshot [filepath]` | Save a 160x144 bmp screenshot to the given path (or save it to cwd with a random name if no path is given). |
@@ -38,7 +38,7 @@ A config file named `gem.ini` is used to persist some user settings. It's create
 | VSync | Synchronize GPU presents with the display's refresh rate. |
 | ResolutionScale | Multiply the window size by an integer to increase its size. |
 | \*Key | A keyboard key to map the Game Boy button to. See [SDL_Keycode](https://wiki.libsdl.org/SDL_Keycode). |
-| DMGPalette | A '\|' delimited list of four colours for the DMG palette (starting with white/colour 0). Each colour can be formated using `rgb(x,x,x)` or as a 32bit hex number: `FFCFEAh`. E.g. `DMGPalette=F7FBE1h\|BAC964h\|438A5Eh\|436F8Ah` |
+| DMGPalette | A '\|' delimited list of four colours for the DMG palette (starting with white/colour 0). Each colour can be formated using `rgb(x,x,x)` or as a 24-bit hex number: `FFCFEAh`. E.g. `DMGPalette=F7FBE1h\|BAC964h\|438A5Eh\|436F8Ah` |
 
 ## Command Line Options
 *Note: These need to be passed in when launching gem.exe.*
