@@ -1,6 +1,6 @@
 
 
-<img align="left" width="64" height="64" src="images/hex-gem.png"> <h1>Gem - Game Boy Color Emulator<h1>
+<img align="left" width="64" height="64" src="images/hex-gem.png"> <h1>Gem - Game Boy Color Emulator & Debugger<h1>
 
 ## Features
 - A slew of commands for debugging the emulation. See table below.
@@ -31,6 +31,15 @@
 | Trace Files | `trace 0\|1` | Start or stop appending to a trace file that records the cpu's state (file saved to cwd ). |
 | Screenshot | `screenshot [filepath]` | Save a 160x144 bmp screenshot to the given path (or save it to cwd with a random name if no path is given). |
 
+## Configuration
+A config file named `gem.ini` is used to persist some user settings. It's created the first time you run the emulator and can then be modified.
+| Config Key | Description |
+| --- | --- |
+| VSync | Synchronize GPU presents with the display's refresh rate. |
+| ResolutionScale | Multiply the window size by an integer to increase its size. |
+| \*Key | A keyboard key to map the Game Boy button to. See [SDL_Keycode](https://wiki.libsdl.org/SDL_Keycode). |
+| DMGPalette | A '\|' delimited list of four colours for the DMG palette (starting with white/colour 0). Each colour can be formated using `rgb(x,x,x)` or as a 32bit hex number: `FFCFEAh`. E.g. `DMGPalette=F7FBE1h\|BAC964h\|438A5Eh\|436F8Ah` |
+
 ## Command Line Options
 *Note: These need to be passed in when launching gem.exe.*
 | Arg | Description |
@@ -39,16 +48,16 @@
 | `--no-sound` | APU is not initialized and isn't ticked at all. |
 | `--dmg` | Emulate DMG hardware instead of the CGB. |
 | `--pause` | Pause after loading a ROM file. |
-| `--res-scale=...` | Multiply the window size by an integer to increase its size |
+| `--res-scale=...` | Multiply the window size by an integer to increase its size. |
 
 ## Keyboard Mapping
 | Game Boy | Keyboard |
 | --- | --- |
 | Arrow buttons | Arrow keys |
-| A | Space |
-| B | Left Shift |
+| A | A |
+| B | S |
 | Start | Enter |
-| Select | Back Slash ('\\') |
+| Select | Left shift |
 
 ## Screenshots
 <img width="50%" height="50%" src="images/wl3-screen.png">
