@@ -106,6 +106,37 @@ bool GemColour::ReplaceWithSpritePixel(const GemColour& replace_with, int colour
 }
 
 /////////////////////////////////
+///      Colour Palette       ///
+/////////////////////////////////
+GemColour* GemPalette::_Black = nullptr;
+GemColour* GemPalette::_DarkGrey = nullptr;
+GemColour* GemPalette::_LightGrey = nullptr;
+GemColour* GemPalette::_White = nullptr;
+
+void GemPalette::ReAssign(int colour_number, const GemColour& colour)
+{
+	switch (colour_number)
+	{
+	case 0:
+		*_White = colour;
+		_White->ColourNumber = colour_number;
+		break;
+	case 1:
+		*_LightGrey = colour;
+		_LightGrey->ColourNumber = colour_number;
+		break;
+	case 2:
+		*_DarkGrey = colour;
+		_DarkGrey->ColourNumber = colour_number;
+		break;
+	case 3:
+		*_Black = colour;
+		_Black->ColourNumber = colour_number;
+		break;
+	}
+}
+
+/////////////////////////////////
 ///       Colour Buffer       ///
 /////////////////////////////////
 

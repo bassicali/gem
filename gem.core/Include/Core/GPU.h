@@ -107,7 +107,7 @@ class GPU
 		int tAcc; // Accumulates T cycles
 
 		void RenderLine();
-		void RenderBgLine();
+		void RenderBGLine();
 		void RenderWindowLine();
 		void RenderSpriteLine();
 		void GetTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttribute& tile_attr);

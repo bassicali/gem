@@ -11,23 +11,6 @@
 #include "GemSoundStream.h"
 #include "GemConsole.h"
 
-struct GemAppSettings
-{
-	bool VSync;
-	bool NoSound;
-	bool ForceDMGMode;
-	bool PauseAfterOpen;
-	float ResolutionScale;
-
-	GemAppSettings()
-		: VSync(false),
-		NoSound(false),
-		ForceDMGMode(false),
-		PauseAfterOpen(false),
-		ResolutionScale(3.0f)
-	{}
-};
-
 union StepCommandParams
 {
 	int NSteps;
@@ -96,7 +79,6 @@ class GemApp
 		const Gem& GetCore() const { return core; }
 
 	private:
-		GemAppSettings settings;
 		bool ShouldEmulateCGBMode();
 		
 		GemSoundStream sound;

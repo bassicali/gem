@@ -9,9 +9,10 @@
 
 #define COLOUR_PALETTE_PURPLE	0
 #define COLOUR_PALETTE_GREEN	1
-#define USE_PALETTE				0
+#define USE_PALETTE				1
 
-#define DECLARE_COLOUR(Name,R,G,B) static const GemColour& Name() { static GemColour* c = new GemColour((R),(G),(B)); return *c; }
+#define DECLARE_COLOUR_STANDALONE(Name,R,G,B) static const GemColour& Name() { static GemColour* c = new GemColour((R),(G),(B)); return *c; }
+#define DECLARE_COLOUR(Name,R,G,B) static const GemColour& Name() { if (!_##Name) { _##Name = new GemColour((R),(G),(B)); } return *_##Name; }
 
 enum class CorrectionMode
 {
@@ -42,13 +43,14 @@ struct GemColour
 	void Correct(CorrectionMode mode, float brightness);
 	bool ReplaceWithSpritePixel(const GemColour& replace_with, int colour_number, bool behind_bg, bool force);
 
-	DECLARE_COLOUR(Black, 0, 0, 0)
-	DECLARE_COLOUR(Purple, 112, 48, 160)
-	DECLARE_COLOUR(White, 255, 255, 255)
+	DECLARE_COLOUR_STANDALONE(Black, 0, 0, 0)
+	DECLARE_COLOUR_STANDALONE(Purple, 112, 48, 160)
+	DECLARE_COLOUR_STANDALONE(White, 255, 255, 255)
 };
 
-struct GemPalette
+class GemPalette
 {
+public:
 #if USE_PALETTE == COLOUR_PALETTE_GREEN
 	DECLARE_COLOUR(Black, 0, 0, 0)
 	DECLARE_COLOUR(DarkGrey, 48, 108, 80)
@@ -60,6 +62,14 @@ struct GemPalette
 	DECLARE_COLOUR(LightGrey, 252, 167, 184)
 	DECLARE_COLOUR(White, 250, 255, 206)
 #endif
+
+	static void ReAssign(int colour_number, const GemColour& colour);
+
+private:
+	static GemColour* _Black;
+	static GemColour* _DarkGrey;
+	static GemColour* _LightGrey;
+	static GemColour* _White;
 };
 
 #undef DECLARE_COLOUR

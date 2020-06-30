@@ -75,8 +75,8 @@ struct MonochromePalette
 	uint8_t ReadBgPalette();
 	const GemColour& GetColour(uint8_t colour_number);
 
-	GemColour MonochromeColours[4];
-	uint8_t BgPalette[4];
+	GemColour* PalettePtrs[4];
+	uint8_t BGPalette[4];
 	uint8_t BgPaletteRegisterByte;
 
 	uint8_t SpritePalette0 = 0;

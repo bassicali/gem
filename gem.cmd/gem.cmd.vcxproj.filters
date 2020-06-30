@@ -39,6 +39,9 @@
     <ClCompile Include="Source\FontGlyphCache.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="Source\GemConfig.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Include\GemConsole.h">
@@ -61,6 +64,9 @@
     </ClInclude>
     <ClInclude Include="resource.h" />
     <ClInclude Include="Include\FontGlyphCache.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\GemConfig.h">
       <Filter>Include</Filter>
     </ClInclude>
   </ItemGroup>

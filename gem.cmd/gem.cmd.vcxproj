@@ -105,6 +105,7 @@
     <ClCompile Include="Source\BoostLogger.cpp" />
     <ClCompile Include="Source\FontGlyphCache.cpp" />
     <ClCompile Include="Source\GemApp.cpp" />
+    <ClCompile Include="Source\GemConfig.cpp" />
     <ClCompile Include="Source\GemConsole.cpp" />
     <ClCompile Include="Source\GemSoundStream.cpp" />
     <ClCompile Include="Source\GemWindow.cpp" />
@@ -120,6 +121,7 @@
     <ClInclude Include="Include\BoostLogger.h" />
     <ClInclude Include="Include\FontGlyphCache.h" />
     <ClInclude Include="Include\GemApp.h" />
+    <ClInclude Include="Include\GemConfig.h" />
     <ClInclude Include="Include\GemConsole.h" />
     <ClInclude Include="Include\GemSoundStream.h" />
     <ClInclude Include="Include\GemWindow.h" />

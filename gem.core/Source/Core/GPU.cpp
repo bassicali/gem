@@ -239,7 +239,7 @@ void GPU::SetLCDControl(uint8_t value)
 
 void GPU::RenderLine()
 {
-	RenderBgLine();
+	RenderBGLine();
 	RenderWindowLine();
 	RenderSpriteLine();
 }
@@ -278,7 +278,7 @@ void GPU::GetTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttribute& 
 	ReadPixels(pixels, tile_data_index, bank_1, horizontal_flip);
 }
 
-void GPU::RenderBgLine()
+void GPU::RenderBGLine()
 {
 	static TilePixelRow pixels;
 	static CgbTileAttribute tile_attr;

@@ -140,18 +140,18 @@ void LCDPositions::Reset(bool bCGB)
 MonochromePalette::MonochromePalette()
 	: BgPaletteRegisterByte(0)
 {
-	MonochromeColours[3] = GemPalette::Black();
-	MonochromeColours[2] = GemPalette::DarkGrey();
-	MonochromeColours[1] = GemPalette::LightGrey();
-	MonochromeColours[0] = GemPalette::White();
+	PalettePtrs[3] = const_cast<GemColour*>(&(GemPalette::Black()));
+	PalettePtrs[2] = const_cast<GemColour*>(&(GemPalette::DarkGrey()));
+	PalettePtrs[1] = const_cast<GemColour*>(&(GemPalette::LightGrey()));
+	PalettePtrs[0] = const_cast<GemColour*>(&(GemPalette::White()));
 }
 
 void MonochromePalette::WriteBgPalette(uint8_t value)
 {
-	BgPalette[3] = (value & 0xC0) >> 6;
-	BgPalette[2] = (value & 0x30) >> 4;
-	BgPalette[1] = (value & 0x0C) >> 2;
-	BgPalette[0] = (value & 0x03) >> 0;
+	BGPalette[3] = (value & 0xC0) >> 6;
+	BGPalette[2] = (value & 0x30) >> 4;
+	BGPalette[1] = (value & 0x0C) >> 2;
+	BGPalette[0] = (value & 0x03) >> 0;
 	BgPaletteRegisterByte = value;
 }
 
@@ -162,8 +162,8 @@ uint8_t MonochromePalette::ReadBgPalette()
 
 const GemColour& MonochromePalette::GetColour(uint8_t colour_number)
 {
-	int index = BgPalette[colour_number];
-	return MonochromeColours[index];
+	int index = BGPalette[colour_number];
+	return *PalettePtrs[index];
 }
 
 

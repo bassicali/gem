@@ -6,6 +6,7 @@
 
 #include "Util.h"
 #include "GemApp.h"
+#include "GemConfig.h"
 #include "Logging.h"
 #include "BoostLogger.h"
 
@@ -24,7 +25,6 @@ GemApp::GemApp() :
 	sprites_window(nullptr),
 	palettes_window(nullptr)
 {
-	settings.ForceDMGMode = false;
 }
 
 GemApp::~GemApp()
@@ -70,23 +70,26 @@ bool GemApp::Init(vector<string> args)
 		load_rom = true;
 	}
 
+	// This call will load the ini file and initialize the keyboard bindings and dmg colour palette
+	GemConfig& config = GemConfig::Get();
+
 	for (string& arg : args)
 	{
 		if (StringEquals(arg, "--dmg"))
 		{
-			settings.ForceDMGMode = true;
+			config.ForceDMGMode = true;
 		}
 		else if (StringEquals(arg, "--vsync"))
 		{
-			settings.VSync = true;
+			config.VSync = true;
 		}
 		else if (StringEquals(arg, "--no-sound"))
 		{
-			settings.NoSound = true;
+			config.NoSound = true;
 		}
 		else if (StringEquals(arg, "--pause"))
 		{
-			settings.PauseAfterOpen = true;
+			config.PauseAfterOpen = true;
 		}
 		else if (StringStartsWith(arg, "--res-scale="))
 		{
@@ -94,12 +97,14 @@ bool GemApp::Init(vector<string> args)
 			if (pos != string::npos)
 			{
 				string nstr = arg.substr(pos + 1);
-				settings.ResolutionScale = stof(nstr);
+				config.ResolutionScale = stof(nstr);
 			}
 		}
 	}
 
-	LOG_INFO("[GEM] Operating in %s mode", (settings.ForceDMGMode ? "DMG" : "CGB"));
+	config.Save();
+
+	LOG_INFO("[GEM] Operating in %s mode", (GemConfig::Get().ForceDMGMode ? "DMG" : "CGB"));
 	
 	if (SDL_Init(SDL_INIT_VIDEO) != 0)
 	{
@@ -121,7 +126,7 @@ bool GemApp::Init(vector<string> args)
 
 bool GemApp::InitCore()
 {
-	if (!settings.NoSound)
+	if (!GemConfig::Get().NoSound)
 	{
 		if (!sound.Init(core.GetAPU()))
 		{
@@ -158,14 +163,16 @@ bool GemApp::InitCore()
 		GemConsole::PrintLn("");
 	}
 
-	paused.store(settings.PauseAfterOpen || rom_file.empty());
+	paused.store(GemConfig::Get().PauseAfterOpen || rom_file.empty());
 
 	return true;
 }
 
 void GemApp::Shutdown()
 {
-	if (!settings.NoSound)
+	GemConfig::Get().Save();
+
+	if (!GemConfig::Get().NoSound)
 		sound.Shutdown();
 	
 	core.Shutdown();
@@ -225,7 +232,7 @@ bool GemApp::ShouldEmulateCGBMode()
 {
 	CGBSupport compat = core.GetCartridgeReader()->GetCGBCompatability();
 
-	return settings.ForceDMGMode
+	return GemConfig::Get().ForceDMGMode
 			? false
 			: compat == CGBSupport::BackwardsCompatible
 				|| compat == CGBSupport::CGBOnly;
@@ -721,7 +728,8 @@ void GemApp::ConsoleLoop()
 
 void GemApp::WindowLoop()
 {
-	main_window = new GemWindow("", GPU::LCDWidth, GPU::LCDHeight, &sound, settings.VSync, settings.ResolutionScale);
+	auto& config = GemConfig::Get();
+	main_window = new GemWindow("", GPU::LCDWidth, GPU::LCDHeight, &sound, config.VSync, config.ResolutionScale);
 	windows.push_back(main_window);
 
 	SetWindowTitles();
@@ -791,7 +799,7 @@ bool GemApp::LoopWork()
 
 	if (!emu_paused)
 	{
-		if (!settings.NoSound && !sound.IsPlaying())
+		if (!GemConfig::Get().NoSound && !sound.IsPlaying())
 			sound.Play();
 
 		// Emulate the core for 1 frame, handling breakpoints if needed
@@ -1012,73 +1020,41 @@ void GemApp::DropEventHandler(SDL_DropEvent& ev)
 
 void GemApp::KeyPressHandler(SDL_KeyboardEvent& ev)
 {
-	switch (ev.keysym.sym)
-	{
-		case SDLK_UP:
-			core.GetJoypad()->Press(JoypadKey::Up);
-			break;
-		case SDLK_DOWN:
-			core.GetJoypad()->Press(JoypadKey::Down);
-			break;
-		case SDLK_LEFT:
-			core.GetJoypad()->Press(JoypadKey::Left);
-			break;
-		case SDLK_RIGHT:
-			core.GetJoypad()->Press(JoypadKey::Right);
-			break;
-		case SDLK_SPACE:
-			core.GetJoypad()->Press(JoypadKey::A);
-			break;
-		case SDLK_LSHIFT:
-			core.GetJoypad()->Press(JoypadKey::B);
-			break;
-		case SDLK_RETURN:
-			core.GetJoypad()->Press(JoypadKey::Start);
-			break;
-		case SDLK_BACKSLASH:
-			core.GetJoypad()->Press(JoypadKey::Select);
-			break;
-	}
+	static GemConfig& config = GemConfig::Get();
+
+	if (ev.keysym.sym == config.UpKey)			core.GetJoypad()->Press(JoypadKey::Up);
+	else if (ev.keysym.sym == config.DownKey)	core.GetJoypad()->Press(JoypadKey::Down);
+	else if (ev.keysym.sym == config.LeftKey)	core.GetJoypad()->Press(JoypadKey::Left);
+	else if (ev.keysym.sym == config.RightKey)	core.GetJoypad()->Press(JoypadKey::Right);
+	else if (ev.keysym.sym == config.AKey)		core.GetJoypad()->Press(JoypadKey::A);
+	else if (ev.keysym.sym == config.BKey)		core.GetJoypad()->Press(JoypadKey::B);
+	else if (ev.keysym.sym == config.StartKey)	core.GetJoypad()->Press(JoypadKey::Start);
+	else if (ev.keysym.sym == config.SelectKey) core.GetJoypad()->Press(JoypadKey::Select);
 }
 
 void GemApp::KeyReleaseHandler(SDL_KeyboardEvent& ev)
 {
-	switch (ev.keysym.sym)
-	{
-		case SDLK_UP:
-			core.GetJoypad()->Release(JoypadKey::Up);
-			break;
-		case SDLK_DOWN:
-			core.GetJoypad()->Release(JoypadKey::Down);
-			break;
-		case SDLK_LEFT:
-			core.GetJoypad()->Release(JoypadKey::Left);
-			break;
-		case SDLK_RIGHT:
-			core.GetJoypad()->Release(JoypadKey::Right);
-			break;
-		case SDLK_SPACE:
-			core.GetJoypad()->Release(JoypadKey::A);
-			break;
-		case SDLK_LSHIFT:
-			core.GetJoypad()->Release(JoypadKey::B);
-			break;
-		case SDLK_RETURN:
-			core.GetJoypad()->Release(JoypadKey::Start);
-			break;
-		case SDLK_BACKSLASH:
-			core.GetJoypad()->Release(JoypadKey::Select);
-			break;
-	}
+	static GemConfig& config = GemConfig::Get();
+
+	if (ev.keysym.sym == config.UpKey)			core.GetJoypad()->Release(JoypadKey::Up);
+	else if (ev.keysym.sym == config.DownKey)	core.GetJoypad()->Release(JoypadKey::Down);
+	else if (ev.keysym.sym == config.LeftKey)	core.GetJoypad()->Release(JoypadKey::Left);
+	else if (ev.keysym.sym == config.RightKey)	core.GetJoypad()->Release(JoypadKey::Right);
+	else if (ev.keysym.sym == config.AKey)		core.GetJoypad()->Release(JoypadKey::A);
+	else if (ev.keysym.sym == config.BKey)		core.GetJoypad()->Release(JoypadKey::B);
+	else if (ev.keysym.sym == config.StartKey)	core.GetJoypad()->Release(JoypadKey::Start);
+	else if (ev.keysym.sym == config.SelectKey) core.GetJoypad()->Release(JoypadKey::Select);
 }
 
 void GemApp::OpenCloseWindows()
 {
+	auto& config = GemConfig::Get();
+
 	if (thstate.ShowTilesWindow)
 	{
 		if (tiles_window == nullptr)
 		{
-			tiles_window = new GemWindow("Tiles", GPU::TileViewWidth, GPU::TileViewHeight, nullptr, settings.VSync, settings.ResolutionScale);
+			tiles_window = new GemWindow("Tiles", GPU::TileViewWidth, GPU::TileViewHeight, nullptr, config.VSync, config.ResolutionScale);
 			windows.push_back(tiles_window);
 		}
 		else if (!tiles_window->IsOpen())
@@ -1095,7 +1071,7 @@ void GemApp::OpenCloseWindows()
 	{
 		if (palettes_window == nullptr)
 		{
-			palettes_window = new GemWindow("Palettes", GPU::PalettesViewWidth, GPU::PalettesViewHeight, nullptr, settings.VSync, settings.ResolutionScale);
+			palettes_window = new GemWindow("Palettes", GPU::PalettesViewWidth, GPU::PalettesViewHeight, nullptr, config.VSync, config.ResolutionScale);
 			windows.push_back(palettes_window);
 		}
 		else if (!palettes_window->IsOpen())
@@ -1112,7 +1088,7 @@ void GemApp::OpenCloseWindows()
 	{
 		if (sprites_window == nullptr)
 		{
-			sprites_window = new GemWindow("Sprites", GPU::SpritesViewWidth, GPU::SpritesViewHeight, nullptr, settings.VSync, settings.ResolutionScale);
+			sprites_window = new GemWindow("Sprites", GPU::SpritesViewWidth, GPU::SpritesViewHeight, nullptr, config.VSync, config.ResolutionScale);
 			windows.push_back(sprites_window);
 		}
 		else if (!sprites_window->IsOpen())

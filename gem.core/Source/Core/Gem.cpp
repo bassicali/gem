@@ -111,10 +111,10 @@ bool Gem::Tick()
 	}
 
 	/** INTERRUPTS */
-	int m_irq = cpu.HandleInterrupts();
+	m_op += cpu.HandleInterrupts();
 
 	/** TIMERS */
-	mmu->GetTimerController().TickTimers((m_op + m_irq) * 4);
+	mmu->GetTimerController().TickTimers(m_op * 4);
 
 	int t_mult = bCGB && mmu->GetCGBRegisters().Speed() == SpeedMode::Double
 					? 2 : 4;
@@ -192,80 +192,4 @@ inline void Gem::HandleTracing(uint16_t pc, uint16_t inst)
 		<< std::nouppercase << setfill(' ') << std::dec << std::endl;
 
 	traceFile->flush();
-}
-
-void Gem::TimingTest()
-{
-	int TickTable[256] = {
-		/*  0, 1, 2, 3, 4, 5,  6, 7,        8, 9, A, B, C, D,  E, F*/
-		4, 12,  8,  8,  4,  4,  8,  4,     20,  8,  8, 8,  4,  4, 8,  4,  //0
-		4, 12,  8,  8,  4,  4,  8,  4,     12,  8,  8, 8,  4,  4, 8,  4,  //1
-		8, 12,  8,  8,  4,  4,  8,  4,      8,  8,  8, 8,  4,  4, 8,  4,  //2
-		8, 12,  8,  8, 12, 12, 12,  4,      8,  8,  8, 8,  4,  4, 8,  4,  //3
-
-		4,  4,  4,  4,  4,  4,  8,  4,      4,  4,  4, 4,  4,  4, 8,  4,  //4
-		4,  4,  4,  4,  4,  4,  8,  4,      4,  4,  4, 4,  4,  4, 8,  4,  //5
-		4,  4,  4,  4,  4,  4,  8,  4,      4,  4,  4, 4,  4,  4, 8,  4,  //6
-		8,  8,  8,  8,  8,  8,  4,  8,      4,  4,  4, 4,  4,  4, 8,  4,  //7
-
-		4,  4,  4,  4,  4,  4,  8,  4,      4,  4,  4, 4,  4,  4, 8,  4,  //8
-		4,  4,  4,  4,  4,  4,  8,  4,      4,  4,  4, 4,  4,  4, 8,  4,  //9
-		4,  4,  4,  4,  4,  4,  8,  4,      4,  4,  4, 4,  4,  4, 8,  4,  //A
-		4,  4,  4,  4,  4,  4,  8,  4,      4,  4,  4, 4,  4,  4, 8,  4,  //B
-
-		8, 12, 12, 16, 12, 16,  8, 16,      8, 16, 12, 0, 12, 24, 8, 16,  //C
-		8, 12, 12,  4, 12, 16,  8, 16,      8, 16, 12, 4, 12,  4, 8, 16,  //D
-		12, 12,  8,  4,  4, 16,  8, 16,     16,  4, 16, 4,  4,  4, 8, 16,  //E
-		12, 12,  8,  4,  4, 16,  8, 16,     12,  8, 16, 4,  0,  4, 8, 16   //F
-	};
-
-	int CBTickTable[256] = {
-		/*  0, 1, 2, 3, 4, 5,  6, 7,        8, 9, A, B, C, D,  E, F*/
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //0
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //1
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //2
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //3
-
-		8, 8, 8, 8, 8, 8, 12, 8,        8, 8, 8, 8, 8, 8, 12, 8,  //4
-		8, 8, 8, 8, 8, 8, 12, 8,        8, 8, 8, 8, 8, 8, 12, 8,  //5
-		8, 8, 8, 8, 8, 8, 12, 8,        8, 8, 8, 8, 8, 8, 12, 8,  //6
-		8, 8, 8, 8, 8, 8, 12, 8,        8, 8, 8, 8, 8, 8, 12, 8,  //7
-
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //8
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //9
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //A
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //B
-
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //C
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //D
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8,  //E
-		8, 8, 8, 8, 8, 8, 16, 8,        8, 8, 8, 8, 8, 8, 16, 8   //F
-	};
-
-	cout << left << setw(10) << setfill(' ') << "Inst";
-	cout << left << setw(10) << setfill(' ') << "Expected";
-	cout << left << setw(10) << setfill(' ') << "Actual" << endl;
-	for (auto& pair : Z80::InstructionNameLookup)
-	{
-		int opcode = static_cast<int>(pair.first);
-
-		int expected_cycles = 0;
-		if ((opcode & 0xCB00) == 0xCB00)
-			expected_cycles = CBTickTable[opcode & 0xFF] / 4;
-		else
-			expected_cycles = TickTable[opcode] / 4;
-
-		int mcycles = cpu.Execute(opcode);
-
-		cpu.Reset(true);
-
-		if (mcycles != expected_cycles)
-		{
-			cout << left << setw(10) << setfill(' ') << pair.second;
-			cout << left << setw(10) << setfill(' ') << expected_cycles;
-			cout << left << setw(10) << setfill(' ') << mcycles << endl;
-		}
-	}
-
-	int x = 0;
 }
