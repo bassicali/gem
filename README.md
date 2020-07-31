@@ -62,6 +62,8 @@ A config file named `gem.ini` is used to persist some user settings. It's create
 ## Screenshots
 <img width="50%" height="50%" src="images/wl3-screen.png">
 <img width="50%" height="50%" src="images/tetris-screen.png">
+<img width="50%" height="50%" src="images/sprites-screen.png">
+<img width="50%" height="50%" src="images/palettes-screen.png">
 <img width="50%" height="50%" src="images/memdump-screen.png">
 
 ## Code Layout
