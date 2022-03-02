@@ -163,7 +163,7 @@ public:
 		count = remainder;
 	}
 
-	void Fill(T value)
+	void Fill(const T& value)
 	{
 		if (data == nullptr)
 			throw std::exception("No memory allocated");

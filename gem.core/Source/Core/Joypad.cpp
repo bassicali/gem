@@ -10,9 +10,9 @@ using namespace std;
 
 // All the joypad pins are active low, hence some inverse logic
 
-Joypad::Joypad() :
-	keyTypeSelect(JoypadKeyType::None),
-	lowerNibble(0xF)
+Joypad::Joypad()
+	: keyTypeSelect(JoypadKeyType::None)
+	, lowerNibble(0xF)
 {
 	for (int i = 0; i < 8; i++) 
 		keyStates[i] = false;

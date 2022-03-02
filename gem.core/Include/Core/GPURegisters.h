@@ -60,7 +60,7 @@ struct LCDPositions
 	uint8_t ScrollY; // 0xFF42
 	uint8_t ScrollX; // 0xFF43
 	uint8_t LineY; // 0xFF44: Ranges from 0-153. 144-153 occurs during VBlank period. Equiv to LY but I don't like that name.
-	uint8_t LycLyCompare; // 0xFF45
+	uint8_t LineYCompare; // 0xFF45
 	uint8_t WindowY; // 0xFF4A
 	uint8_t WindowX; // 0xFF4B
 	uint8_t WindowLineY; // This isn't a register, but we need a counter for the current line of the window being rendered.

@@ -140,8 +140,18 @@ void GemPalette::ReAssign(int colour_number, const GemColour& colour)
 ///       Colour Buffer       ///
 /////////////////////////////////
 
+ColourBuffer::ColourBuffer()
+	: DArray<GemColour>()
+	, Width(0)
+	, Height(0)
+{
+
+}
+
 ColourBuffer::ColourBuffer(int w, int h)
-	: DArray<GemColour>(w * h, true), Width(w), Height(h)
+	: DArray<GemColour>(w * h, true)
+	, Width(w)
+	, Height(h)
 {
 }
 

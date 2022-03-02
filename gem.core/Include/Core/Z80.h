@@ -3,10 +3,9 @@
 #include <fstream>
 #include <cstdint>
 #include <functional>
-#include <map>
 
 #include "Core/MMU.h"
-#include "Instruction.h"
+#include "Core/Instruction.h"
 
 #define ZERO_MASK		0x80
 #define OPERATION_MASK	0x40
@@ -37,13 +36,16 @@ class Z80
 		void SetMMU(std::shared_ptr<MMU> ptr);
 
 		bool IsInterruptsEnabled() const { return interruptMasterEnable; }
+		void SetInterruptsEnabled(bool enabled) { interruptMasterEnable = enabled; }
 		int HandleInterrupts();
 		bool IsIdle() const { return isHalted || isStopped; }
 
 		uint16_t GetPC() const { return PC; }
+		void SetPC(uint16_t value) { PC = value; }
 		void AdvancePC() { PC++; }
 
 		uint16_t GetSP() const { return SP; }
+		void SetSP(uint16_t value) { SP = value; }
 		int GetCallsOnStack() const { return calls_on_stack; }
 
 		// TODO: store these values as booleans
@@ -52,16 +54,16 @@ class Z80
 		uint8_t GetZeroFlag()		const { return (registerFile[F] & ZERO_MASK)		>> 7; }
 		uint8_t GetOperationFlag()	const { return (registerFile[F] & OPERATION_MASK)	>> 6; }
 
-		uint8_t GetRegisterA() const { return registerFile[7]; }
-		uint8_t GetRegisterB() const { return registerFile[0]; }
-		uint8_t GetRegisterC() const { return registerFile[1]; }
-		uint8_t GetRegisterD() const { return registerFile[2]; }
-		uint8_t GetRegisterE() const { return registerFile[3]; }
-		uint8_t GetRegisterH() const { return registerFile[4]; }
-		uint8_t GetRegisterL() const { return registerFile[5]; }
-		uint8_t GetRegisterF() const { return registerFile[6]; }
 
-		static std::map<Instruction, const char*> InstructionNameLookup;
+		#define DECLARE_REGISTER_PROPERTY(x,i) uint8_t GetRegister##x() const { return registerFile[i]; } void SetRegister##x(uint8_t value) { registerFile[i] = value; }
+		DECLARE_REGISTER_PROPERTY(A, 7)
+		DECLARE_REGISTER_PROPERTY(F, 6)
+		DECLARE_REGISTER_PROPERTY(B, 0)
+		DECLARE_REGISTER_PROPERTY(C, 1)
+		DECLARE_REGISTER_PROPERTY(D, 2)
+		DECLARE_REGISTER_PROPERTY(E, 3)
+		DECLARE_REGISTER_PROPERTY(H, 4)
+		DECLARE_REGISTER_PROPERTY(L, 5)
 
 	private:
 		std::shared_ptr<MMU> mmu;

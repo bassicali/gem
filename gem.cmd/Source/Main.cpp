@@ -1,8 +1,10 @@
 
 #include <iostream>
+#include <memory>
+#include <cstdlib>
 
-#include "BoostLogger.h"
 #include "GemApp.h"
+#include "AppLog.h"
 
 using namespace std;
 
@@ -19,53 +21,38 @@ void _AtExitHandler()
 	call_once(shutdown_flag, _AppShutdown);
 }
 
-BOOL WINAPI _ConsoleCtrlHandler(DWORD type)
+extern "C" int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	if (type == CTRL_CLOSE_EVENT)
-	{
-		call_once(shutdown_flag, _AppShutdown);
-		return TRUE;
-	}
-
-	return FALSE;
-}
-
-int main(int argc, char* argv[])
-{
-	BoostLogger::InitializeLogging();
+	auto log = make_shared<AppLog>("Gem-log.txt");
+	IGemLog::SetLogger(log.get());
 
 	vector<string> arguments;
-	for (int i = 0; i < argc; i++)
+	for (int i = 0; i < __argc; i++)
 	{
-		arguments.push_back(string(argv[i]));
+		arguments.push_back(string(__argv[i]));
 	}
 
-	if (SetConsoleCtrlHandler(_ConsoleCtrlHandler, TRUE) == 0)
+	if (!app.Init(arguments))
+		return -1;
+
+	atexit(_AtExitHandler);
+
+	int exit_code = 0;
+
+	try
 	{
-		LOG_WARN("Couldn't register console ctrl handler");
+		app.WindowLoop();
+	}
+	catch (exception& ex)
+	{
+		LOG_ERROR("Unhandled error: %s", ex.what());
+		exit_code = -1;
+	}
+	catch (...)
+	{
+		LOG_ERROR("Unhandled error");
+		exit_code = -1;
 	}
 
-	if (app.Init(arguments))
-	{
-		atexit(_AtExitHandler);
-
-		try
-		{
-			thread window_thread(&GemApp::WindowLoop, &app);
-			app.ConsoleLoop();
-			window_thread.join();
-		}
-		catch (exception& ex)
-		{
-			LOG_ERROR("Unhandled error: %s", ex.what());
-		}
-		catch (...)
-		{
-			LOG_ERROR("Unhandled error");
-		}
-
-		return 0;
-	}
-
-	return -1;
+	return exit_code;
 }

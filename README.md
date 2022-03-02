@@ -3,10 +3,16 @@
 <img align="left" width="64" height="64" src="images/hex-gem.png"> <h1>Gem - Game Boy Color Emulator & Debugger<h1>
 
 ## Features
-- A slew of commands for debugging the emulation. See table below.
+- Disassembler/debugger
+- Visualizations for tiles, sprites and palette colours
+- Levels visualizer for the 4 sound channels
+- Plot for channel 4 wave pattern
+- A command console with some commands for debugging the emulation. See table below.
 - Easy to read code. Highly modularized design and liberal usage of comments makes it a good reference for writing your own emulator.
 
-## Debug Commands
+
+
+## Console Commands
 *Note: Any numeric argument can be suffixed with 'h' to indicate a hex number (e.g. 204 -> CCh)*
 | Command | Syntax | Description |
 | --- | --- | --- |
@@ -68,13 +74,10 @@ A config file named `gem.ini` is used to persist some user settings. It's create
 
 ## Code Layout
 - **gem.core**: All the hardware emulation logic is in this library. It has no dependencies and is written in portable C++.
-- **gem.cmd**: A terminal/console front-end for the core that includes a bunch of commands for debugging the emualation. SDL2 and SDL_ttf are used for audio/video and it only builds on windows for now.
+- **gem.gui**: A UI front-end and debugger for the emultation core. The main window uses just SDL2 while the debugger is written with ImGui.
 
 ## Projects
 - [SDL2](https://www.libsdl.org/download-2.0.php)
-- [SDL_ttf](https://www.libsdl.org/projects/SDL_ttf/) + [FreeType](https://www.freetype.org/index.html)
-- [Boost](https://www.boost.org/)
-- [Cascadia Code font](https://github.com/microsoft/cascadia-code)
+- [Dear ImGui](https://github.com/ocornut/imgui)
 - [BGB Emulator Debugger](https://bgb.bircd.org/) - super useful during the development of gem.
-
-Thank you :)
+- Droid Sans font

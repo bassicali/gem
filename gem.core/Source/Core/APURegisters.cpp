@@ -11,25 +11,25 @@
 ////////////////////////////
 
 APUControlRegisters::APUControlRegisters()
-	: VinToSO2(false),
-		SO2Level(0),
-		VinToSO1(false),
-		SO1Level(0),
-		VolumeRegisterByte(0),
-		Chan1ToSO2(false),
-		Chan2ToSO2(false),
-		Chan3ToSO2(false),
-		Chan4ToSO2(false),
-		Chan1ToSO1(false),
-		Chan2ToSO1(false),
-		Chan3ToSO1(false),
-		Chan4ToSO1(false),
-		ChannelSelectionRegisterByte(0),
-		MasterEnable(0),
-		Channel1Enable(false),
-		Channel2Enable(false),
-		Channel3Enable(false),
-		Channel4Enable(false)
+	: VinToSO2(false)
+	, SO2Level(0)
+	, VinToSO1(false)
+	, SO1Level(0)
+	, VolumeRegisterByte(0)
+	, Chan1ToSO2(false)
+	, Chan2ToSO2(false)
+	, Chan3ToSO2(false)
+	, Chan4ToSO2(false)
+	, Chan1ToSO1(false)
+	, Chan2ToSO1(false)
+	, Chan3ToSO1(false)
+	, Chan4ToSO1(false)
+	, ChannelSelectionRegisterByte(0)
+	, MasterEnable(0)
+	, Channel1Enable(false)
+	, Channel2Enable(false)
+	, Channel3Enable(false)
+	, Channel4Enable(false)
 {
 }
 
@@ -54,9 +54,9 @@ void APUControlRegisters::WriteChannelSelectionRegister(const uint8_t value)
 	Chan3ToSO2 = (value & 0x20) >> 5;
 	Chan4ToSO2 = (value & 0x10) >> 4;
 	Chan1ToSO1 = (value & 0x08) >> 3;
-	Chan1ToSO1 = (value & 0x04) >> 2;
-	Chan1ToSO1 = (value & 0x02) >> 1;
-	Chan1ToSO1 = (value & 0x01) >> 0;
+	Chan2ToSO1 = (value & 0x04) >> 2;
+	Chan3ToSO1 = (value & 0x02) >> 1;
+	Chan4ToSO1 = (value & 0x01) >> 0;
 	ChannelSelectionRegisterByte = value;
 }
 
@@ -79,7 +79,7 @@ uint8_t APUControlRegisters::ReadChannelEnableRegister() const
 			| Channel1Enable;
 }
 
-void APUControlRegisters::GetLeftLevelMask(uint8_t* arr)
+void APUControlRegisters::GetLeftLevelMask(uint8_t* arr) const
 {
 	arr[0] = Chan1ToSO2 * SO2Level;
 	arr[1] = Chan2ToSO2 * SO2Level;
@@ -87,7 +87,7 @@ void APUControlRegisters::GetLeftLevelMask(uint8_t* arr)
 	arr[3] = Chan4ToSO2 * SO2Level;
 }
 
-void APUControlRegisters::GetRightLevelMask(uint8_t* arr)
+void APUControlRegisters::GetRightLevelMask(uint8_t* arr) const
 {
 	arr[0] = Chan1ToSO1 * SO1Level;
 	arr[1] = Chan2ToSO1 * SO1Level;
@@ -100,9 +100,9 @@ void APUControlRegisters::GetRightLevelMask(uint8_t* arr)
 ////////////////////////////
 
 Channel1Registers::Channel1Registers()
-	: sweepPeriod(0),
-	decrease(false),
-	sweepRegisterByte(0)
+	: sweepPeriod(0)
+	, decrease(false)
+	, sweepRegisterByte(0)
 {
 }
 
@@ -136,18 +136,18 @@ void Channel1Registers::WriteSweepRegister(const uint8_t value)
 ////////////////////////////
 
 Channel2Registers::Channel2Registers()
-	: emitter(nullptr),
-		waveDutyCode(0x2),
-		soundLength(0.0f),
-		waveDutyAndLengthRegisterByte(0x80),
-		initialVolume(0),
-		volumeIncrease(false),
-		envelopePeriod(0),
-		volumeEnvelopeRegisterByte(0),
-		periodData(0),
-		startPlaying(false),
-		stopAfterLen(true),
-		freqRegisterByte(0x40)
+	: emitter(nullptr)
+	, waveDutyCode(0x2)
+	, soundLength(0.0f)
+	, waveDutyAndLengthRegisterByte(0x80)
+	, initialVolume(0)
+	, volumeIncrease(false)
+	, envelopePeriod(0)
+	, volumeEnvelopeRegisterByte(0)
+	, periodData(0)
+	, startPlaying(false)
+	, stopAfterLen(true)
+	, freqRegisterByte(0x40)
 {
 }
 
@@ -217,7 +217,9 @@ uint8_t Channel2Registers::ReadFrequencyRegister() const
 ////////////////////////////
 
 Channel3Registers::Channel3Registers()
-	: emitter(nullptr), startPlaying(false), channelOn(false)
+	: emitter(nullptr)
+	, startPlaying(false)
+	, channelOn(false)
 {
 
 }
@@ -284,7 +286,8 @@ void Channel3Registers::StartEmitter()
 ////////////////////////////
 
 Channel4Registers::Channel4Registers()
-	: emitter(nullptr), startPlaying(false)
+	: emitter(nullptr)
+	, startPlaying(false)
 {
 }
 

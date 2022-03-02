@@ -12,6 +12,24 @@
 
 #define NUM_EMITTERS 4
 
+struct EmittersSnapshot
+{
+	EmittersSnapshot()
+	{
+		memset(this, 0, sizeof(EmittersSnapshot));
+	}
+
+	uint8_t L_Emitter1;
+	uint8_t L_Emitter2;
+	uint8_t L_Emitter3;
+	uint8_t L_Emitter4;
+
+	uint8_t R_Emitter1;
+	uint8_t R_Emitter2;
+	uint8_t R_Emitter3;
+	uint8_t R_Emitter4;
+};
+
 class APU
 {
 public:
@@ -25,13 +43,14 @@ public:
 
 	uint8_t ReadWaveRAM(uint16_t addr);
 	void WriteWaveRAM(uint16_t addr, uint8_t value);
-	
+
+	void SetMuted(bool muted) { mute = muted; }
 	void SetChannelMask(int chan_index, uint8_t mask);
 	void DecodeWaveRAM(uint8_t dest[32]);
 	int BufferCount() const { return buffer.Count(); }
 	void ClearBuffer() { buffer.Truncate(0); }
 	APUControlRegisters& Controller() { return controller; }
-
+	EmittersSnapshot Snapshot() const { return snapshot; }
 	static const int AudioQueueSampleCount = 4096;
 
 private:
@@ -41,6 +60,9 @@ private:
 
 	// An additional mask that the front-end can use to mute channels
 	uint8_t chanMask[NUM_EMITTERS];
+	bool mute;
+
+	EmittersSnapshot snapshot;
 	
 	APUControlRegisters controller;
 	Channel1Registers chan1;

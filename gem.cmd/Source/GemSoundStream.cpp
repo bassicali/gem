@@ -16,6 +16,9 @@ GemSoundStream::GemSoundStream()
 
 bool GemSoundStream::Init(shared_ptr<APU> ptr)
 {
+	if (initialized)
+		return false;	
+
 	if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0)
 	{
 		LOG_ERROR("Failed to initialize SDL audio: %s", SDL_GetError()); 

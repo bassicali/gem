@@ -69,9 +69,6 @@
     <ClInclude Include="Include\DArray.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="Include\DecodedInstruction.h">
-      <Filter>Include</Filter>
-    </ClInclude>
     <ClInclude Include="Include\Disassembler.h">
       <Filter>Include</Filter>
     </ClInclude>
@@ -88,6 +85,9 @@
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="Include\IAudioQueue.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\Util.h">
       <Filter>Include</Filter>
     </ClInclude>
   </ItemGroup>
@@ -137,9 +137,6 @@
     <ClCompile Include="Source\Core\Timers.cpp">
       <Filter>Source\Core</Filter>
     </ClCompile>
-    <ClCompile Include="Source\DecodedInstruction.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Disassembler.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -149,5 +146,16 @@
     <ClCompile Include="Source\Colour.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Core\Instruction.cpp">
+      <Filter>Source\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Util.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Include\OpcodeTable.inl">
+      <Filter>Include</Filter>
+    </None>
   </ItemGroup>
 </Project>

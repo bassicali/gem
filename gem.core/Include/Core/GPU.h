@@ -71,10 +71,9 @@ class GPU
 		const ColourBuffer& GetFrameBuffer() { return frameBuffer; }
 		void ClearFrameBuffer() { frameBuffer.Zero(); }
 
-		void ComputeTileViewBuffer();
-		const ColourBuffer& GetTileViewBuffer() { return tileViewBuffer; }
-		void DrawSpritesViewBuffer(IDrawTarget& target);
-		void DrawPaletteViewBuffer(IDrawTarget& target);
+		void RenderSpritesViz(ColourBuffer* out_buffers, SpriteData* out_sprites);
+		void RenderTilesViz(ColourBuffer* out_buffers, CgbTileAttribute* out_attrs);
+		void RenderPalettesViz(ColourBuffer* out_buffers, ColourPalette::PaletteEntry* out_entries);
 
 		CorrectionMode GetColourCorrectionMode() const { return correctionMode; }
 		void SetColourCorrectionMode(CorrectionMode mode) { correctionMode = mode; }
@@ -86,18 +85,13 @@ class GPU
 		static const int VRAMSize = 0x2000 * 2; // 8kb * 2 banks
 		static const int OAMSize = 0xA0; // 160 bytes (4bytes per sprite)
 		static const int NumSprites = 40;
+		static const int NumTilesPerSet = 128;
+		static const int NumPaletteColours = 64;
 
 		static const int LCDWidth = 160;
 		static const int LCDHeight = 144;
 		static const int TileMapWidth = 256;
 		static const int TileMapHeight = 256;
-		static const int TileViewWidth = 256;
-		static const int TileViewHeight = 256;
-
-		// The sprites view arranged as a grid of 8x5 tiles with each one
-		// showing the info for a single sprite
-		static const int SpritesViewWidth = 155;
-		static const int SpritesViewHeight = 175;
 
 		static const int PalettesViewWidth = 83;
 		static const int PalettesViewHeight = 125;
@@ -138,8 +132,6 @@ class GPU
 		ColourPalette sprColourPalette;
 
 		ColourBuffer frameBuffer;
-		ColourBuffer tileViewBuffer;
-		ColourBuffer spriteViewBuffer;
 		CorrectionMode correctionMode;
 		float brightness;
 

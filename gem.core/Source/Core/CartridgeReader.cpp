@@ -7,11 +7,11 @@
 
 using namespace std;
 
-CartridgeReader::CartridgeReader() :
-	cursor(0),
-	size(0),
-	isLoaded(false),
-	romData(nullptr)
+CartridgeReader::CartridgeReader()
+	: cursor(0)
+	, size(0)
+	, isLoaded(false)
+	, romData(nullptr)
 {
 }
 

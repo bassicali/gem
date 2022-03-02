@@ -1,204 +1,337 @@
+
+#include <list>
+#include <cassert>
+
 #include "Disassembler.h"
+#include "Util.h"
+#include "Core/Instruction.h"
+#include "Core/Z80.h"
+#include "Core/MMU.h"
 
 using namespace std;
+using namespace GemUtil;
 
-Disassembler::Disassembler() :
-	rom_disassembly()
-{
-	
-}
+DisassemblyEntry DisassemblyEntry::Unknown = DisassemblyEntry();
 
-Disassembler::Disassembler(shared_ptr<MMU> memory) :
-	rom_disassembly(1024)
+string DisassemblyEntry::GetMnemonic() const
 {
-	DisassembleFromMMU(memory);
-}
-
-DecodedInstruction& Disassembler::GetDisassembly(unsigned int index)
-{
-	if (index >= rom_disassembly.size())
+	OpCodeInfo op;
+	if (OpCodeIndex::Get().Lookup(OpCode, op))
 	{
-		throw exception("Index too large for disassembly.");
-	}
-
-	return rom_disassembly[index];
-}
-
-size_t Disassembler::TranslateAddressToIndex(uint16_t pc)
-{
-	if (index_by_address.find(pc) != index_by_address.end())
-	{
-		return index_by_address[pc];
-	}
-
-	return -1;
-}
-
-void Disassembler::DisassembleFromMMU(shared_ptr<MMU> memory)
-{
-	uint16_t addr;
-	int stride = 0;
-	Instruction inst;
-	int inst_size;
-	int imm_size;
-
-	for (addr = 0; addr < 0x8000; addr += stride)
-	{
-		updateDisassembly(memory, addr, inst, inst_size, imm_size);
-		stride = inst_size + imm_size;
-	}
-
-	// Skip VRAM
-
-	if (memory->GetCartridgeReader()->Properties().HasExtRam)
-	{
-		for (addr = 0xA000; addr < 0xC000; addr += stride)
+		string mnemonic = op.Mnemonic;
+		char imm_str[5];
+		if (NumImmediates == 0)
 		{
-			updateDisassembly(memory, addr, inst, inst_size, imm_size);
-			stride = inst_size + imm_size;
+			return mnemonic;
 		}
-	}
-
-	for (addr = 0xC000; addr < 0xFE00; addr += stride)
-	{
-		updateDisassembly(memory, addr, inst, inst_size, imm_size);
-		stride = inst_size + imm_size;
-	}
-
-	// Skip everything after FDFFh; I don't think games ever execute from that region.
-}
-
-void Disassembler::OnWriteByte(shared_ptr<MMU> memory, uint16_t address, uint8_t value)
-{
-	auto it = index_by_address.find(address);
-	if (it != index_by_address.end())
-	{
-		size_t index = it->second;
-
-		uint16_t starting_address = rom_disassembly[index].GetAddress();
-
-		Instruction inst;
-		int inst_size;
-		int imm_size;
-		DecodedInstruction updated_inst = decodeMemoryAtAddress(memory, starting_address, inst, inst_size, imm_size);
-
-		rom_disassembly[index] = updated_inst;
-
-		if (recording_changes)
+		else if (NumImmediates == 1)
 		{
-			if (changes.size() > 20000)
-			{
-				changes.clear();
-				changes.push_back(DisassemblyChange::CreateUpdateAll());
-			}
-			else if (changes.size() != 1 || changes[0].Type != DisassemblyChangeType::UpdateAll)
-			{
-				changes.push_back(DisassemblyChange::CreateUpdate(updated_inst, index));
-			}
+			sprintf_s(imm_str, "%02X", Imm0);
+			StringReplace(mnemonic, "{imm0}", imm_str);
 		}
+		else if (NumImmediates == 2)
+		{
+			sprintf_s(imm_str, "%02X", Imm0);
+			StringReplace(mnemonic, "{imm0}", imm_str);
+
+			sprintf_s(imm_str, "%02X", Imm1);
+			StringReplace(mnemonic, "{imm1}", imm_str);
+		}
+
+		return StringLower(mnemonic);
 	}
+
+	return string();
 }
 
-void Disassembler::updateDisassembly(shared_ptr<MMU> memory, uint16_t address, Instruction& out_inst, int& out_inst_size, int& out_imm_size)
+wstring DisassemblyEntry::GetMnemonicW() const
 {
-	DecodedInstruction inst = decodeMemoryAtAddress(memory, address, out_inst, out_inst_size, out_imm_size);
-	
-	if (out_imm_size == 0)
-	{
-		rom_disassembly.push_back(inst);
-		index_by_address[address] = rom_disassembly.size() - 1;
-	}
-	else if (out_imm_size == 1)
-	{
-		rom_disassembly.push_back(inst);
-		index_by_address[address] = rom_disassembly.size() - 1;
-		index_by_address[address + 1] = rom_disassembly.size() - 1;
-	}
-	else if (out_imm_size == 2)
-	{
-		rom_disassembly.push_back(inst);
-		index_by_address[address] = rom_disassembly.size() - 1;
-		index_by_address[address + 1] = rom_disassembly.size() - 1;
-		index_by_address[address + 2] = rom_disassembly.size() - 1;
-	}
+	return std::wstring();
 }
 
-DecodedInstruction Disassembler::decodeMemoryAtAddress(shared_ptr<MMU> memory, uint16_t address, Instruction& out_inst, int& out_inst_size, int& out_imm_size)
+
+//bool Disassembler::isDesignatedDataAddress(uint16_t address)
+//{
+//	bool is_rom_header =	address >= 0x0104 && address <= 0x014F;
+//	bool is_vram =			address >= 0x8000 && address <= 0x9FFF;
+//	bool is_oam =			address >= 0xFE00 && address <= 0xFE9F;
+//	bool is_io =			address >= 0xFF00 && address <= 0xFF7F;
+//
+//	return is_rom_header || is_vram || is_oam || is_io;
+//}
+//
+
+
+Disassembler::Disassembler()
 {
-	uint16_t inst_bytes;
-	uint8_t b0 = memory->ReadByte(address);
-	uint8_t b1;
-	if (b0 == 0xCB)
+}
+
+// Is addr an opcode or is it an immediate value?
+bool IsImmediateValue(uint16_t addr, MMU& memory)
+{
+	auto& index = OpCodeIndex::Get();
+
+	uint16_t b2 = memory.ReadByte(addr - 2);
+	if (index.Contains(b2) && index.GetImmSize(b2) == 2)
 	{
-		b1 = memory->ReadByte(address + 1);
-		inst_bytes = 0xCB00 | b1;
-		out_inst_size = 2;
+		return true;
+	}
+
+	uint16_t b1 = memory.ReadByte(addr - 1);
+	if (index.Contains(b1) && index.GetImmSize(b1) == 1)
+	{
+		return true;
+	}
+
+	uint16_t b0 = memory.ReadByte(addr);
+	return index.Contains(b0);
+}
+
+bool IsBetween(int x, int a, int b)
+{
+	if (b > a)
+		return x >= a && x < b;
+
+	return x >= b && x < a;
+}
+
+bool CrossesMemMapBoundary(uint16_t a, uint16_t b)
+{
+	if (a <= 0x7FFF && b >= 0x8000)
+		return true;
+	else if (a <= 0x9FFF && b >= 0xA000)
+		return true;
+	else if (a <= 0xCFFF && b >= 0xD000)
+		return true;
+	else if (a <= 0xDFFF && b >= 0xE000)
+		return true;
+
+	return false;
+}
+
+bool ReadByte(uint16_t addr, uint16_t prev_addr, MMU& memory, bool stop_at_boundary, uint8_t& out_byte)
+{
+	if (addr < 0 || addr > 0xFFFF)
+		return false;
+
+	if (stop_at_boundary && CrossesMemMapBoundary(prev_addr, addr))
+		return false;
+
+	out_byte = memory.ReadByte(addr);
+	return true;
+}
+
+/*static*/
+bool Disassembler::FindAnchor(uint16_t start_addr, MMU& memory, int max_look_behind, uint16_t& out_anchor)
+{
+	uint16_t curr_addr = 0;
+	uint16_t prev_addr = 0;
+	uint16_t anchor = start_addr;
+
+	int offset = 0;
+	while (offset < max_look_behind)
+	{
+		curr_addr = start_addr - offset;
+
+		if (prev_addr != 0 && CrossesMemMapBoundary(prev_addr, curr_addr))
+		{
+			anchor = prev_addr;
+			break;
+		}
+
+		uint8_t b;
+		if (prev_addr != 0 && !ReadByte(curr_addr, prev_addr, memory, false, b))
+			break;
+
+		if (prev_addr == 0)
+			prev_addr = curr_addr;
+
+		if (!OpCodeIndex::Get().Contains(b) && b != 0xCB)
+		{
+			anchor = curr_addr + 1;
+			break;
+		}
+		else if (CrossesMemMapBoundary(curr_addr - 1, curr_addr))
+		{
+			anchor = curr_addr - 1;
+			break;
+		}
+
+		// TODO: call/jmp addrs can also be used as anchors
+
+		offset++;
+	}
+
+	if (anchor != start_addr)
+	{
+		out_anchor = anchor;
+		return true;
+	}
+
+	return false;
+}
+
+/*static*/
+void Disassembler::Decode(uint16_t addr, int count, bool look_behind_for_anchor, MMU& memory, DisassemblyChain& out_list, DisassemblyChunk*& out_chunk_ptr, int& out_chunk_index)
+{
+	uint16_t anchor;
+	if (look_behind_for_anchor && FindAnchor(addr, memory, 30, anchor))
+	{
+		addr = anchor;
+	}
+
+#define READ_OR_STOP(addr,b) if (first_addr != 0 && !ReadByte(addr, first_addr, memory, true, b)) { break; }
+
+	bool stop = false;
+	uint16_t opcode;
+	uint16_t first_addr = 0;
+	uint8_t b0, b1, b2;
+
+	int chunk_idx;
+	if (!out_chunk_ptr)
+	{
+		out_chunk_ptr = out_list.GetOrCreateChunk(addr);
+		out_chunk_index = 0;
 	}
 	else
 	{
-		inst_bytes = uint16_t(b0);
-		out_inst_size = 1;
+		auto& last = out_chunk_ptr->Entries[out_chunk_ptr->Entries.size() - 1];
+		assert(out_chunk_ptr->Entries.size() > 0);
+		assert(addr == (last.Address + last.GetSize() + 1));
+
+		// Decode() is being called to extend an existing chunk
+		out_chunk_index++;
 	}
 
-	out_inst = static_cast<Instruction>(inst_bytes);
-	out_imm_size = GetInstructionImmSize(out_inst);
+	int start_size = out_chunk_ptr->Entries.size();
+	int added = 0;
+	bool reached_end = false;
 
-	if (out_imm_size == 0)
+	while (!stop && !reached_end && added < count)
 	{
-		return DecodedInstruction(address, out_inst);
+		if (addr > 0x101 && addr < 0x150)
+		{
+			// Cartridge header here
+			break;
+		}
+
+		if (!ReadByte(addr, first_addr, memory, /*stop_at_boundary=*/ added > 0, b0))
+		{
+			break;
+		}
+
+		if (added == 0)
+			first_addr = addr;
+
+		if (b0 == 0xCB)
+		{
+			READ_OR_STOP(addr + 1, b1);
+			opcode = 0xCB00 | b1;
+		}
+		else
+		{
+			opcode = b0;
+		}
+
+		assert(OpCodeIndex::Get().Contains(opcode));
+
+		int imm = OpCodeIndex::Get().GetImmSize(opcode);
+		if (imm == 0)
+		{
+			out_chunk_ptr->Entries.push_back(DisassemblyEntry(static_cast<OpCode>(opcode), addr));
+		}
+		else if (imm == 1)
+		{
+			READ_OR_STOP(addr + 1, b1);
+			out_chunk_ptr->Entries.push_back(DisassemblyEntry(static_cast<OpCode>(opcode), b1, addr));
+		}
+		else
+		{
+			READ_OR_STOP(addr + 1, b1);
+			READ_OR_STOP(addr + 2, b2);
+			out_chunk_ptr->Entries.push_back(DisassemblyEntry(static_cast<OpCode>(opcode), b1, b2, addr));
+		}
+
+		out_list.TotalLen++;
+		added++;
+
+		// IMPORTANT TODO: merge this chunk with the next one if it's about to overlap
+
+		uint16_t prev = addr;
+		addr += imm + 1;
+		addr += b0 == 0xCB ? 1 : 0;
+		reached_end = addr < prev;
 	}
-	else if (out_imm_size == 1)
+
+#undef READ_OR_STOP
+
+	return;
+}
+
+void Disassembler::DecodeMore(int count, MMU& memory, DisassemblyChain& out_list, DisassemblyChunk* chunk)
+{
+	uint16_t start_addr = chunk->Entries[chunk->Entries.size() - 1].Address;
+	int index;
+	Decode(start_addr, count, false, memory, out_list, chunk, index);
+}
+
+void Disassembler::UpdateChain(DisassemblyChain& chain, uint16_t new_addr, int& curr_chunk_index, DisassemblyChunk*& chunk)
+{
+	if (curr_chunk_index < (chunk->Entries.size() - 1)
+		&& chunk->Entries[curr_chunk_index + 1].Address == new_addr)
 	{
-		return DecodedInstruction(address, out_inst, memory->ReadByte(address + out_inst_size));
+		// TODO: if reaching the end of the chunk, decode more
+
+		curr_chunk_index++;
+
+		return;
 	}
-	else if (out_imm_size == 2)
+
+	assert(0);
+}
+
+// Maintains a sorted linked list of disassembled chunks of assembly
+DisassemblyChunk* DisassemblyChain::GetOrCreateChunk(uint16_t addr)
+{
+	// Find a hole in the disassembled address ranges where this new chunk can be inserted
+	DisassemblyChunk* chunk_ptr = nullptr;
+	ChunkChain::iterator it = Chunks.begin();
+	for (auto& chunk : Chunks)
 	{
-		return DecodedInstruction(address, out_inst, memory->ReadByte(address + out_inst_size), memory->ReadByte(address + out_inst_size + 1));
+		if (addr >= chunk.StartAddr() && addr <= (chunk.EndAddr() + chunk.Last().GetSize()))
+		{
+			chunk_ptr = &chunk;
+			break;
+		}
+		else if (addr < chunk.StartAddr())
+		{
+			break;
+		}
+
+		it++;
 	}
 
-	return DecodedInstruction();
+	if (chunk_ptr)
+	{
+		return chunk_ptr;
+	}
+
+	auto inserted = Chunks.insert(it, DisassemblyChunk());
+	return &(*inserted);
 }
 
-bool Disassembler::isDesignatedDataAddress(uint16_t address)
+DisassemblyChunk* DisassemblyChain::InsertAfter(DisassemblyChunk* chunk)
 {
-	bool is_rom_header =	address >= 0x0104 && address <= 0x014F;
-	bool is_vram =			address >= 0x8000 && address <= 0x9FFF;
-	bool is_oam =			address >= 0xFE00 && address <= 0xFE9F;
-	bool is_io =			address >= 0xFF00 && address <= 0xFF7F;
+	ChunkChain::iterator it = Chunks.begin();
 
-	return is_rom_header || is_vram || is_oam || is_io;
-}
+	for (; it != Chunks.end(); it++)
+	{
+		if (chunk == &(*it))
+		{
+			break;
+		}
+	}
 
-DisassemblyChange::DisassemblyChange() :
-	Type(AddNew), 
-	Index(0),
-	AddOrUpdateInstruction()
-{
-}
-
-DisassemblyChange::DisassemblyChange(DisassemblyChangeType type, int index, DecodedInstruction inst) :
-	Type(type),
-	Index(index)
-{
-	AddOrUpdateInstruction = inst;
-}
-
-DisassemblyChange DisassemblyChange::CreateAddNew(DecodedInstruction inst, int index)
-{
-	return DisassemblyChange(DisassemblyChangeType::AddNew, index, inst);
-}
-
-DisassemblyChange DisassemblyChange::CreateRemove(int index)
-{
-	return DisassemblyChange(DisassemblyChangeType::Remove, index, DecodedInstruction());
-}
-
-DisassemblyChange DisassemblyChange::CreateUpdate(DecodedInstruction inst, int index)
-{
-	return DisassemblyChange(DisassemblyChangeType::UpdateExisting, index, DecodedInstruction());
-}
-
-DisassemblyChange DisassemblyChange::CreateUpdateAll()
-{
-	return DisassemblyChange(DisassemblyChangeType::UpdateAll, 0, DecodedInstruction());
+	auto inserted = Chunks.insert(it, DisassemblyChunk());
+	return &(*inserted);
 }

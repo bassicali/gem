@@ -29,13 +29,13 @@
     <ClInclude Include="Include\Core\Timers.h" />
     <ClInclude Include="Include\Core\Z80.h" />
     <ClInclude Include="Include\DArray.h" />
-    <ClInclude Include="Include\DecodedInstruction.h" />
     <ClInclude Include="Include\Disassembler.h" />
     <ClInclude Include="Include\IAudioQueue.h" />
     <ClInclude Include="Include\IDrawTarget.h" />
     <ClInclude Include="Include\IMappedComponent.h" />
     <ClInclude Include="Include\Logging.h" />
     <ClInclude Include="Include\Colour.h" />
+    <ClInclude Include="Include\Util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Core\APU.cpp" />
@@ -46,6 +46,7 @@
     <ClCompile Include="Source\Core\Gem.cpp" />
     <ClCompile Include="Source\Core\GPU.cpp" />
     <ClCompile Include="Source\Core\GPURegisters.cpp" />
+    <ClCompile Include="Source\Core\Instruction.cpp" />
     <ClCompile Include="Source\Core\InterruptController.cpp" />
     <ClCompile Include="Source\Core\Joypad.cpp" />
     <ClCompile Include="Source\Core\MBC.cpp" />
@@ -53,10 +54,13 @@
     <ClCompile Include="Source\Core\Serial.cpp" />
     <ClCompile Include="Source\Core\Timers.cpp" />
     <ClCompile Include="Source\Core\Z80.cpp" />
-    <ClCompile Include="Source\DecodedInstruction.cpp" />
     <ClCompile Include="Source\Disassembler.cpp" />
     <ClCompile Include="Source\Logging.cpp" />
     <ClCompile Include="Source\Colour.cpp" />
+    <ClCompile Include="Source\Util.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Include\OpcodeTable.inl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{26C35621-FC07-43AB-BC05-1DDDDACBA283}</ProjectGuid>
@@ -71,13 +75,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>

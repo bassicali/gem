@@ -2,47 +2,32 @@
 #include <chrono>
 #include <filesystem>
 #include <cmath>
+#include <sstream>
 #include <cstdlib>
 
 #include "Util.h"
+#include "MsgPad.h"
 #include "GemApp.h"
 #include "GemConfig.h"
 #include "Logging.h"
-#include "BoostLogger.h"
 
 using namespace std;
 using namespace std::chrono;
 namespace fs = std::filesystem;
 
-using namespace GemCmdUtil;
+using namespace GemUtil;
 
-#define SCOPE_LOCK_MTX() lock_guard<timed_mutex> lock(console_ui_mtx)
-
-GemApp::GemApp() :
-	paused(true),
-	main_window(nullptr),
-	tiles_window(nullptr),
-	sprites_window(nullptr),
-	palettes_window(nullptr)
+GemApp::GemApp()
+	: mainWindow(nullptr)
 {
+	int x = sizeof(GemDebugger);
+	int y = 0;
 }
 
 GemApp::~GemApp()
 {
-	if (main_window != nullptr)
-	{
-		delete main_window;
-	}
-
-	if (tiles_window != nullptr)
-	{
-		delete tiles_window;
-	}
-
-	if (sprites_window != nullptr)
-	{
-		delete sprites_window;
-	}
+	if (mainWindow)
+		delete mainWindow;
 }
 
 bool GemApp::Init(vector<string> args) 
@@ -53,21 +38,24 @@ bool GemApp::Init(vector<string> args)
 		string& arg = args[i];
 		joined += string(" ") + arg;
 	}
+
 	LOG_INFO("Command Line: %s", joined.c_str());
 	
-	bool load_rom = false;
 	if (args.size() > 1 && args[1][0] != '-')
 	{
 		fs::path rompath(args[1]);
 
 		if (!fs::exists(rompath))
 		{
-			GemConsole::PrintLn("ROM file not found");
+			LOG_ERROR("ROM file not found: %s", rompath.string().c_str());
+
+			if (GemConfig::Get().ShowConsole)
+				GemConsole::Get().PrintLn("ROM file not found");
+
 			return false;
 		}
 
-		rom_file = rompath.string();
-		load_rom = true;
+		GMsgPad.ROMPath = rompath.string();
 	}
 
 	// This call will load the ini file and initialize the keyboard bindings and dmg colour palette
@@ -86,6 +74,10 @@ bool GemApp::Init(vector<string> args)
 		else if (StringEquals(arg, "--no-sound"))
 		{
 			config.NoSound = true;
+		}
+		else if (StringEquals(arg, "--debugger") || StringEquals(arg, "--debug"))
+		{
+			config.ShowDebugger = true;
 		}
 		else if (StringEquals(arg, "--pause"))
 		{
@@ -118,8 +110,23 @@ bool GemApp::Init(vector<string> args)
 		return false;
 	}
 
+	if (config.ShowDebugger)
+	{
+		if (debugger.Init())
+			debugger.SetCore(&core);
+		else
+			LOG_WARN("Debugger could not be initialized: %s", SDL_GetError());
+	}
+
 	if (!InitCore())
 		return false;
+
+	if (core.IsROMLoaded())
+	{
+		GMsgPad.Disassemble.NumInstructions = 100;
+		GMsgPad.Disassemble.Address = core.GetCPU().GetPC();
+		GMsgPad.Disassemble.State = DisassemblyRequestState::Requested;
+	}
 
 	return true;
 }
@@ -128,7 +135,7 @@ bool GemApp::InitCore()
 {
 	if (!GemConfig::Get().NoSound)
 	{
-		if (!sound.Init(core.GetAPU()))
+		if (!sound.IsInitialized() && !sound.Init(core.GetAPU()))
 		{
 			LOG_ERROR("Sound system could not be initialized, continuing without it");
 			core.ToggleSound(false);
@@ -139,11 +146,11 @@ bool GemApp::InitCore()
 		core.ToggleSound(false);
 	}
 	
-	if (!rom_file.empty())
+	if (!GMsgPad.ROMPath.empty())
 	{
 		try
 		{
-			core.LoadRom(rom_file.c_str());
+			core.LoadRom(GMsgPad.ROMPath.c_str());
 		}
 		catch (exception& ex)
 		{
@@ -154,16 +161,22 @@ bool GemApp::InitCore()
 		core.Reset(ShouldEmulateCGBMode());
 
 		shared_ptr<CartridgeReader> rom_reader = core.GetCartridgeReader();
-		GemConsole::PrintLn(" ROM file loaded");
-		GemConsole::PrintLn(" Title: %s", rom_reader->Properties().Title);
-		GemConsole::PrintLn(" ROM Size: %d KB", rom_reader->Properties().ROMSize);
-		GemConsole::PrintLn(" RAM Size: %d KB", rom_reader->Properties().RAMSize);
-		GemConsole::PrintLn(" Cartridge: %s", CartridgeReader::ROMTypeString(rom_reader->Properties().Type).c_str());
-		GemConsole::PrintLn(" CGB: %s", CartridgeReader::CGBSupportString(rom_reader->Properties().CGBCompatability).c_str());
-		GemConsole::PrintLn("");
+
+		if (GemConfig::Get().ShowConsole)
+		{
+			GemConsole::Get().PrintLn("ROM file loaded");
+			GemConsole::Get().PrintLn("Title: %s", rom_reader->Properties().Title);
+			GemConsole::Get().PrintLn("ROM Size: %d KB", rom_reader->Properties().ROMSize);
+			GemConsole::Get().PrintLn("RAM Size: %d KB", rom_reader->Properties().RAMSize);
+			GemConsole::Get().PrintLn("Cartridge: %s", CartridgeReader::ROMTypeString(rom_reader->Properties().Type).c_str());
+			GemConsole::Get().PrintLn("CGB: %s", CartridgeReader::CGBSupportString(rom_reader->Properties().CGBCompatability).c_str());
+			GemConsole::Get().PrintLn("");
+		}
 	}
 
-	paused.store(GemConfig::Get().PauseAfterOpen || rom_file.empty());
+	GMsgPad.EmulationPaused.store(GemConfig::Get().PauseAfterOpen || GMsgPad.ROMPath.empty());
+
+	debugger.Reset();
 
 	return true;
 }
@@ -176,56 +189,25 @@ void GemApp::Shutdown()
 		sound.Shutdown();
 	
 	core.Shutdown();
-	
+
 	if (TTF_WasInit())
 		TTF_Quit();
-
-	if (!ShutdownVideo())
-		LOG_ERROR("UI thread could not be shutdown gracefully");
-}
-
-bool GemApp::ShutdownVideo()
-{
-	{
-		lock_guard<timed_mutex> lock(console_ui_mtx);
-		thstate.Shutdown = true;
-		thstate.Changed = true;
-	}
-
-	// Give other thread some time to re-evaluate thstate
-	this_thread::sleep_for(20ms);
-
-	if (console_ui_mtx.try_lock_for(100ms))
-	{
-		bool finished = thstate.WindowLoopFinished;
-		console_ui_mtx.unlock();
-		return finished;
-	}
-
-	return false;
 }
 
 void GemApp::SetWindowTitles()
 {
+	bool emu_paused = GMsgPad.EmulationPaused.load();
+
 	stringstream ss1;
 	ss1 << "Gem";
-	stringstream ss2;
-	ss2 << "Gem Console";
 
 	if (core.IsROMLoaded())
-	{
 		ss1 << " - " << core.GetCartridgeReader()->Properties().Title;
-		ss2 << " - " << core.GetCartridgeReader()->Properties().Title;
-	}
 
-	if (paused.load() == true)
-	{
+	if (emu_paused)
 		ss1 << " (PAUSED)";
-		ss2 << " (PAUSED)";
-	}
 
-	main_window->SetTitle(SanitizeString(ss1.str()).c_str());
-	console.SetTitle(SanitizeString(ss2.str()).c_str());
+	mainWindow->SetTitle(SanitizeString(ss1.str()).c_str());
 }
 
 bool GemApp::ShouldEmulateCGBMode()
@@ -238,508 +220,32 @@ bool GemApp::ShouldEmulateCGBMode()
 				|| compat == CGBSupport::CGBOnly;
 }
 
-void GemApp::ConsoleLoop()
-{
-	bool stop = false;
-	bool defer_prompt = false;
-
-	static char path[_MAX_PATH];
-	static OPENFILENAMEA opts;
-
-	while (!stop)
-	{
-		GemConsole::PrintPrompt();
-		ConsoleCommand cmd = console.GetCommand();
-
-		switch (cmd.Type)
-		{
-			case CommandType::OpenROM:
-			{
-				if (!cmd.StrArg0.empty())
-				{
-					fs::path load_path(cmd.StrArg0);
-
-					if (!fs::exists(load_path))
-					{
-						console.PrintLn("ROM file not found");
-					}
-					else
-					{
-						SCOPE_LOCK_MTX();
-						thstate.ROMPath = fs::absolute(load_path).string();
-						thstate.Changed = true;
-						thstate.Reset = true;
-					}
-				}
-				else
-				{
-					memset(&opts, 0, sizeof(OPENFILENAMEA));
-					opts.lStructSize = sizeof(OPENFILENAMEA);
-					opts.hwndOwner = NULL;
-					opts.lpstrFile = &path[0];
-					opts.nMaxFile = sizeof(char) * _MAX_PATH;
-					opts.lpstrFilter = "Game Boy ROMs (*.gb;*.gbc)\0*.gb;*.gbc\0\0";
-					opts.nFilterIndex = 1;
-					opts.lpstrFileTitle = NULL;
-					opts.nMaxFileTitle = 0;
-					opts.lpstrInitialDir = NULL;
-
-					opts.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOVALIDATE;
-					if (GetOpenFileNameA(&opts))
-					{
-						SCOPE_LOCK_MTX();
-						thstate.ROMPath = string(path);
-						thstate.Changed = true;
-						thstate.Reset = true;
-					}
-				}
-
-				break;
-			}
-
-			case CommandType::ShowWindow:
-			{
-				if (StringEquals(cmd.StrArg0, "palettes"))
-				{
-					SCOPE_LOCK_MTX();
-					thstate.ShowPalettesWindow = true;
-					thstate.Changed = true;
-				}
-				else if (StringEquals(cmd.StrArg0, "sprites"))
-				{
-					SCOPE_LOCK_MTX();
-					thstate.ShowSpritesWindow = true;
-					thstate.Changed = true;
-				}
-				else if (StringEquals(cmd.StrArg0, "tiles"))
-				{
-					SCOPE_LOCK_MTX();
-					thstate.ShowTilesWindow = true;
-					thstate.Changed = true;
-				}
-
-				break;
-			}
-
-			case CommandType::HideWindow:
-			{
-				if (StringEquals(cmd.StrArg0, "palettes"))
-				{
-					SCOPE_LOCK_MTX();
-					thstate.ShowPalettesWindow = false;
-					thstate.Changed = true;
-				}
-				else if (StringEquals(cmd.StrArg0, "sprites"))
-				{
-					SCOPE_LOCK_MTX();
-					thstate.ShowSpritesWindow = false;
-					thstate.Changed = true;
-				}
-				else if (StringEquals(cmd.StrArg0, "tiles"))
-				{
-					SCOPE_LOCK_MTX();
-					thstate.ShowTilesWindow = false;
-					thstate.Changed = true;
-				}
-
-				break;
-			}
-
-			case CommandType::PrintInfo:
-			{
-				SCOPE_LOCK_MTX();
-
-				if (StringEquals(cmd.StrArg0, "lcd") || StringEquals(cmd.StrArg0, "gpu"))
-					console.PrintGPUInfo(core);
-				else if (StringEquals(cmd.StrArg0, "cpu") || StringEquals(cmd.StrArg0, "z80"))
-					console.PrintCPUInfo(core);
-				else if (StringEquals(cmd.StrArg0, "apu"))
-					console.PrintAPUInfo(core);
-				else if (StringEquals(cmd.StrArg0, "timer"))
-					console.PrintTimerInfo(core);
-				else if (StringEquals(cmd.StrArg0, "rom"))
-					console.PrintROMInfo(core);
-
-
-				break;
-			}
-			case CommandType::Trace:
-			{
-				SCOPE_LOCK_MTX();
-				if (cmd.Arg0)
-				{
-					auto& filename = core.StartTrace();
-					console.PrintLn("CPU trace started: %s", filename.c_str());
-				}
-				else
-				{
-					core.EndTrace();
-					console.PrintLn("CPU trace stopped");
-				}
-
-				break;
-			}
-			case CommandType::Run:
-			{
-				paused.store(false);
-				SetWindowTitles();
-				break;
-			}
-			case CommandType::Pause:
-			{
-				paused.store(true);
-				SetWindowTitles();
-				break;
-			}			
-			case CommandType::Save:
-			{
-				SCOPE_LOCK_MTX();
-				shared_ptr<CartridgeReader> cart = core.GetCartridgeReader();
-				if (cart)
-				{
-					if (cart->Properties().ExtRamHasBattery)
-					{
-						core.GetMMU()->SaveGame();
-						console.PrintLn("Save-game written to %s", core.GetCartridgeReader()->SaveGameFile().c_str());
-					}
-					else
-					{
-						console.PrintLn("This cartridge type cannot create a save-game");
-					}
-				}
-				else
-				{
-					console.PrintLn("No cartridge");
-				}
-
-				break;
-			}
-			case CommandType::APUMute:
-			{
-				SCOPE_LOCK_MTX();
-				core.GetAPU()->SetChannelMask(0, 0);
-				core.GetAPU()->SetChannelMask(1, 0);
-				core.GetAPU()->SetChannelMask(2, 0);
-				core.GetAPU()->SetChannelMask(3, 0);
-				console.PrintLn("APU muted");
-				break;
-			}
-			case CommandType::APUUnmute:
-			{
-				SCOPE_LOCK_MTX();
-				core.GetAPU()->SetChannelMask(0, 1);
-				core.GetAPU()->SetChannelMask(1, 1);
-				core.GetAPU()->SetChannelMask(2, 1);
-				core.GetAPU()->SetChannelMask(3, 1);
-				console.PrintLn("APU unmuted");
-				break;
-			}
-			case CommandType::APUChannelMask:
-			{
-				SCOPE_LOCK_MTX();
-				int index = cmd.Arg0 - 1;
-				if (index >= 0 && index <= 3 && (cmd.Arg1 == 0 || cmd.Arg1 == 1))
-				{
-					core.GetAPU()->SetChannelMask(index, cmd.Arg1);
-					console.PrintLn("Channel %d mask: %d", cmd.Arg0, cmd.Arg1);
-				}
-				else
-				{
-					console.PrintLn("Invalid command args");
-				}
-				break;
-			}
-			case CommandType::ColourCorrectionMode:
-			{
-				SCOPE_LOCK_MTX();
-				switch (cmd.Arg0)
-				{
-					case 0:
-						core.GetGPU()->SetColourCorrectionMode(CorrectionMode::Washout);
-						break;
-					case 1:
-						core.GetGPU()->SetColourCorrectionMode(CorrectionMode::Scale);
-						break;
-				}
-				break;
-			}
-			case CommandType::Brightness:
-			{
-				SCOPE_LOCK_MTX();
-				core.GetGPU()->SetBrightness(cmd.FArg0);
-				break;
-			}
-			case CommandType::SetFrameRateLimit:
-			{
-				SCOPE_LOCK_MTX();
-				thstate.FrameRateLimit = cmd.Arg0;
-				thstate.Changed = true;
-				break;
-			}
-			case CommandType::ShowFPS:
-			{
-				SCOPE_LOCK_MTX();
-				thstate.ShowFPS = (bool)cmd.Arg0;
-				thstate.Changed = true;
-				break;
-			}
-			case CommandType::Reset:
-			{
-				SCOPE_LOCK_MTX();
-				thstate.Reset = true;
-				thstate.Changed = true;
-				break;
-			}
-			case CommandType::Exit:
-			{
-				stop = true;
-
-				SCOPE_LOCK_MTX();
-				// End the console loop and signal the window loop to also stop
-				thstate.Shutdown = true;
-				thstate.Changed = true;
-				break;
-			}
-
-			case CommandType::Breakpoint:
-			{
-				SCOPE_LOCK_MTX();
-
-				if (cmd.Arg0 == 0 && cmd.Arg1 == 0)
-				{
-					if (breakpoints.size() == 0)
-					{
-						console.PrintLn("No breakpoints set");
-					}
-					else
-					{
-						console.PrintLn(" Breakpoints");
-						for (int i = 0; i < breakpoints.size(); i++)
-						{
-							if (breakpoints[i].Enabled)
-								console.PrintLn(" [%d] %04Xh", i, breakpoints[i].Addr);
-							else
-								console.PrintLn(" [%d] %04Xh (off)", i, breakpoints[i].Addr);
-						}
-					}
-				}
-				else
-				{
-					bool found = false;
-					for (int i = 0; i < breakpoints.size(); i++)
-					{
-						if (breakpoints[i].Addr == cmd.Arg0)
-						{
-							breakpoints[i].Enabled = cmd.Arg1 != 0;
-							found = true;
-							break;
-						}
-					}
-
-					if (!found)
-					{
-						breakpoints.push_back(Breakpoint(cmd.Arg0));
-					}
-				}
-
-				break;
-			}
-
-			case CommandType::ReadBreakpoint:
-			case CommandType::WriteBreakpoint:
-			{
-				SCOPE_LOCK_MTX();
-
-				bool is_read = cmd.Type == CommandType::ReadBreakpoint;
-				vector<RWBreakpoint>& bplist = is_read ? core.GetMMU()->ReadBreakpoints() : core.GetMMU()->WriteBreakpoints();
-
-				bool print_list = false;
-				if (cmd.StrArg0.empty() && cmd.StrArg1.empty())
-				{
-					if (bplist.size() == 0)
-					{
-						console.PrintLn("No breakpoints set");
-					}
-					else
-					{
-						print_list = true;
-					}
-				}
-				else if (!cmd.StrArg0.empty() && cmd.StrArg1.empty())
-				{
-					bplist.push_back(RWBreakpoint(cmd.Arg0, 0, false, false));
-					print_list = true;
-				}
-				else if (!cmd.StrArg0.empty() && !cmd.StrArg1.empty())
-				{
-					uint16_t addr;
-
-					if (StringEquals(cmd.StrArg1, "-") || StringEquals(cmd.StrArg1, "del"))
-					{
-					}
-					else
-					{
-						bool is_mask = StringEndsWith(cmd.StrArg1, "m");
-
-						if (is_mask)
-							addr = ParseNumericString(cmd.StrArg1.substr(0, cmd.StrArg1.size() - 1));
-						else
-							addr = cmd.Arg1;
-						bplist.push_back(RWBreakpoint(cmd.Arg0, addr, true, is_mask));
-					}
-
-					print_list = true;
-				}
-
-				if (print_list)
-				{
-					console.PrintLn(is_read ? " MMU Read Breakpoints" : " MMU Write Breakpoints");
-					for (int i = 0; i < bplist.size(); i++)
-					{
-						auto& bp = bplist[i];
-						if (bp.CheckValue && !bp.ValueIsMask)
-							console.PrintLn(" [%d] %04Xh %02Xh", i, bp.Addr, bp.Value);
-						else if (bp.CheckValue && bp.ValueIsMask)
-							console.PrintLn(" [%d] %04Xh %02Xh (mask)", i, bp.Addr, bp.Value);
-						else
-							console.PrintLn(" [%d] %04Xh", i, bp.Addr);
-					}
-				}
-
-				break;
-			}
-
-			case CommandType::Step:
-			case CommandType::StepN:
-			case CommandType::StepUntilVBlank:
-			{
-				if (paused.load() == true)
-				{
-					SCOPE_LOCK_MTX();
-
-					if (cmd.Type == CommandType::StepUntilVBlank)
-						thstate.StepParams.UntilVBlank = true;
-					else
-						thstate.StepParams.NSteps = cmd.Type == CommandType::Step ? 1 : cmd.Arg0;
-
-					thstate.StepType = cmd.Type;
-					thstate.Changed = true;
-				}
-				else
-				{
-					console.PrintLn("Emulation must be paused first");
-				}
-
-				break;
-			}
-
-			case CommandType::MemDump:
-			{
-				SCOPE_LOCK_MTX();
-				console.MemDump(*core.GetMMU(), cmd.Arg0, cmd.Arg1);
-				break;
-			}
-
-			case CommandType::Screenshot:
-			{
-				filesystem::path save_path;
-
-				if (!cmd.StrArg0.empty())
-				{
-					cmd.StrArg0 = cmd.StrArg0.append(".bmp");
-					if (filesystem::exists(cmd.StrArg0))
-					{
-						LOG_CONS("File already exists");
-						break;
-					}
-					
-					save_path = fs::absolute(fs::path(cmd.StrArg0));
-				}
-				else
-				{
-					long id = UnixTimestamp();
-					string file_name("screenshot-");
-					file_name.append(to_string(id));
-					file_name.append(".bmp");
-					save_path = fs::absolute(fs::path(file_name));
-				}
-
-				if (!fs::exists(save_path.parent_path()))
-				{
-					fs::create_directory(save_path.parent_path());
-				}
-
-				if (SDL_Surface* surface = SDL_CreateRGBSurface(0, GPU::LCDWidth, GPU::LCDHeight, 32, 0, 0, 0, 0))
-				{
-					SCOPE_LOCK_MTX();
-
-					const ColourBuffer& frame = core.GetGPU()->GetFrameBuffer();
-					uint8_t* pixels = (uint8_t*)surface->pixels;
-					int index;
-
-					for (int i = 0; i < frame.Count(); i++)
-					{
-						index = i * BYTES_PER_PIXEL;
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-						pixels[index + 0] = frame[i].Alpha;
-						pixels[index + 1] = frame[i].Red;
-						pixels[index + 2] = frame[i].Green;
-						pixels[index + 3] = frame[i].Blue;
-#else
-						pixels[index + 0] = frame[i].Blue;
-						pixels[index + 1] = frame[i].Green;
-						pixels[index + 2] = frame[i].Red;
-						pixels[index + 3] = frame[i].Alpha;
-#endif
-					}
-
-					auto s = save_path.string();
-					const char* fullpath = s.c_str();
-
-					if (SDL_RWops* rwops = SDL_RWFromFile(fullpath, "wb"))
-					{
-						if (SDL_SaveBMP_RW(surface, rwops, 1) == 0)
-						{
-							console.PrintLn("Saved screenshot to %s", fullpath);
-						}
-						else
-						{
-							console.PrintLn("Failed to save screenshot bitmap. Error: %s", SDL_GetError());
-						}
-					}
-					else
-					{
-						console.PrintLn("Failed to save screenshot bitmap. Error: %s", SDL_GetError());
-					}
-
-					SDL_FreeSurface(surface);
-				}
-
-				break;
-			}
-
-			case CommandType::None: 
-			default:
-				LOG_CONS("Unknown command or invalid arguments");
-				break;
-		}
-	}
-}
-
 void GemApp::WindowLoop()
 {
 	auto& config = GemConfig::Get();
-	main_window = new GemWindow("", GPU::LCDWidth, GPU::LCDHeight, &sound, config.VSync, config.ResolutionScale);
-	windows.push_back(main_window);
+	mainWindow = new RenderWindow("", GPU::LCDWidth, GPU::LCDHeight, &sound, config.VSync, config.ResolutionScale);
 
 	SetWindowTitles();
 
-	while (main_window->IsOpen())
+	while (mainWindow->IsOpen())
 	{
 		ProcessEvents();
 		
-		if (!LoopWork())
-			break;
+		if (LoopWork())
+		{
+			mainWindow->DrawFrame(core.GetGPU()->GetFrameBuffer());
+			mainWindow->Present();
+		}
+
+		if (debugger.IsInitialized() && !debugger.IsHidden())
+		{
+			debugger.Draw();
+		}
+		else if (!core.IsROMLoaded())
+		{
+			// Normally ImGui in the debugger window will limit the framerate, if its closed we have to do it here with a sleep.
+			this_thread::sleep_for(16ms);
+		}
 	}
 
 	sound.Pause();
@@ -749,53 +255,31 @@ void GemApp::WindowLoop()
 
 bool GemApp::LoopWork()
 {
-	SCOPE_LOCK_MTX();
+	const vector<Breakpoint>& breakpoints = debugger.Breakpoints();
 
-	if (thstate.Changed)
+	if (GMsgPad.Reset)
 	{
-		if (thstate.Shutdown)
+		if (!GMsgPad.ROMPath.empty())
 		{
-			thstate.WindowLoopFinished = true;
-			return false;
-		}
-
-		if (thstate.Reset)
-		{
-			if (!thstate.ROMPath.empty())
-			{
-				rom_file = thstate.ROMPath;
-				thstate.ROMPath.clear();
-			}
-
 			if (InitCore())
 			{
-				// echo a new prompt because InitCore() prints some stuff out
-				GemConsole::PrintPrompt();
 				SetWindowTitles();
 			}
-
-			thstate.Reset = false;
 		}
-
-		OpenCloseWindows();
-
-		if (thstate.FrameRateLimit != 0 && main_window->GetFrameRateLimit() != thstate.FrameRateLimit)
-		{
-			main_window->SetFrameRateLimit(thstate.FrameRateLimit);
-			thstate.FrameRateLimit = 0;
-		}
-
-		main_window->ShowFPSCounter(thstate.ShowFPS);
-
-		thstate.Changed = false;
+		
+		GMsgPad.ROMPath.clear();
+		GMsgPad.Reset = false;
 	}
 	else
 	{
 		HandleDropEventFileChanged();
 	}
 
-	bool emu_paused = paused.load();
-	bool vblank;
+	if (!core.IsROMLoaded())
+		return false;
+
+	bool emu_paused = GMsgPad.EmulationPaused.load();
+	bool swap = false;
 
 	if (!emu_paused)
 	{
@@ -806,49 +290,29 @@ bool GemApp::LoopWork()
 		if (breakpoints.size() == 0 && !core.GetMMU()->AnyBreakpoints())
 		{
 			core.TickUntilVBlank();
-			PresentWindows();
+			swap = true;
 		}
 		else
 		{
 			if (DebuggerTick(false))
-				PresentWindows();
+				swap = true;
 		}
 	}
-	else if (thstate.StepType != CommandType::None)
+	else if (GMsgPad.StepType != StepType::None)
 	{
 		if (DebuggerTick(true))
-			PresentWindows();
+			swap = true;
+	}
+
+	if (debugger.IsInitialized())
+	{
+		debugger.HandleDisassembly(emu_paused);
 	}
 
 	if (emu_paused)
 		this_thread::sleep_for(30ms);
 
-	return true;
-}
-
-void GemApp::PresentWindows()
-{
-	main_window->DrawFrame(core.GetGPU()->GetFrameBuffer());
-	main_window->Present();
-
-	if (tiles_window != nullptr && tiles_window->IsOpen())
-	{
-		core.GetGPU()->ComputeTileViewBuffer();
-		tiles_window->DrawFrame(core.GetGPU()->GetTileViewBuffer());
-		tiles_window->Present();
-	}
-
-	if (sprites_window != nullptr && sprites_window->IsOpen())
-	{
-		core.GetGPU()->DrawSpritesViewBuffer(*sprites_window);
-		sprites_window->Present();
-	}
-
-	if (palettes_window != nullptr && palettes_window->IsOpen())
-	{
-		core.GetGPU()->DrawPaletteViewBuffer(*palettes_window);
-		palettes_window->Present();
-	}
+	return swap;
 }
 
 bool GemApp::DebuggerTick(bool emu_paused)
@@ -858,6 +322,7 @@ bool GemApp::DebuggerTick(bool emu_paused)
 	int bp_index = -1, rbp_index = -1, wbp_index = -1;
 	const vector<RWBreakpoint>& rbps = core.GetMMU()->ReadBreakpoints();
 	const vector<RWBreakpoint>& wbps = core.GetMMU()->WriteBreakpoints();
+	const vector<Breakpoint>& breakpoints = debugger.Breakpoints();
 	core.GetMMU()->EvalBreakpoints(true);
 
 	while ((!emu_paused || !stepping_finished) && !hit && !vblank)
@@ -903,27 +368,17 @@ bool GemApp::DebuggerTick(bool emu_paused)
 		if (rbp_index >= 0)
 			break;
 
-		if (emu_paused && thstate.StepType != CommandType::None)
+		if (emu_paused && GMsgPad.StepType != StepType::None)
 		{
-			switch (thstate.StepType)
+			switch (GMsgPad.StepType)
 			{
-				case CommandType::Step:
-				case CommandType::StepN:
+				case StepType::Step:
+				case StepType::StepN:
 				{
-					int& cnt = thstate.StepParams.NSteps;
+					int& cnt = GMsgPad.StepParams.NSteps;
 					if (--cnt == 0)
 					{
-						thstate.StepType = CommandType::None;
-						stepping_finished = true;
-					}
-
-					break;
-				}
-				case CommandType::StepUntilVBlank:
-				{
-					if (vblank)
-					{
-						thstate.StepType = CommandType::None;
+						GMsgPad.StepType = StepType::None;
 						stepping_finished = true;
 					}
 
@@ -935,39 +390,32 @@ bool GemApp::DebuggerTick(bool emu_paused)
 
 	if (bp_index >= 0)
 	{
-		paused.store(true);
-		console.PrintLn("Breakpoint hit: %04Xh", breakpoints[bp_index].Addr);
-		console.PrintPrompt();
+		GMsgPad.EmulationPaused.store(true);
+		GemConsole::Get().PrintLn("Breakpoint hit: %04Xh", breakpoints[bp_index].Addr);
 	}
 	else if (wbp_index >= 0)
 	{
-		paused.store(true);
+		GMsgPad.EmulationPaused.store(true);
 		const RWBreakpoint& bp = wbps[wbp_index];
 
 		if (bp.CheckValue)
-			console.PrintLn("MMU Write Breakpoint hit: %04Xh %02Xh", bp.Addr, bp.Value);
+			GemConsole::Get().PrintLn("MMU Write Breakpoint hit: %04Xh %02Xh", bp.Addr, bp.Value);
 		else
-			console.PrintLn("MMU Write Breakpoint hit: %04Xh", bp.Addr);
-
-		console.PrintPrompt();
+			GemConsole::Get().PrintLn("MMU Write Breakpoint hit: %04Xh", bp.Addr);
 	}
 	else if (rbp_index >= 0)
 	{
-		paused.store(true);
+		GMsgPad.EmulationPaused.store(true);
 		const RWBreakpoint& bp = rbps[rbp_index];
 
 		if (bp.CheckValue)
-			console.PrintLn("MMU Read Breakpoint hit: %04Xh %02Xh", bp.Addr, bp.Value);
+			GemConsole::Get().PrintLn("MMU Read Breakpoint hit: %04Xh %02Xh", bp.Addr, bp.Value);
 		else
-			console.PrintLn("MMU Read Breakpoint hit: %04Xh", bp.Addr);
-
-		console.PrintPrompt();
+			GemConsole::Get().PrintLn("MMU Read Breakpoint hit: %04Xh", bp.Addr);
 	}
 	else if (emu_paused && stepping_finished)
 	{
-		console.PrintCPUInfo(core);
-		console.PrintPrompt();
-		paused.store(true);
+		GMsgPad.EmulationPaused.store(true);
 	}
 
 	core.GetMMU()->EvalBreakpoints(false);
@@ -983,16 +431,40 @@ void GemApp::ProcessEvents()
 		switch (event.type)
 		{
 			case SDL_WINDOWEVENT:
-				WindowEventHandler(event.window);
+				if (event.window.windowID == debugger.SDLWindowId())
+					debugger.HandleEvent(event);
+				else
+					WindowEventHandler(event.window);
 				break;
+
 			case SDL_DROPFILE:
 				DropEventHandler(event.drop);
 				break;
+
 			case SDL_KEYDOWN:
-				KeyPressHandler(event.key);
+				if (event.key.windowID == debugger.SDLWindowId())
+					debugger.HandleEvent(event);
+				else
+					KeyPressHandler(event.key);
 				break;
+
 			case SDL_KEYUP:
-				KeyReleaseHandler(event.key);
+				if (event.key.windowID == debugger.SDLWindowId())
+					debugger.HandleEvent(event);
+				else
+					KeyReleaseHandler(event.key);
+				break;
+
+			case SDL_MOUSEMOTION:
+				if (event.motion.windowID == debugger.SDLWindowId())
+					debugger.HandleEvent(event);
+				break;
+
+			default:
+				if (debugger.IsInitialized())
+				{
+					debugger.HandleEvent(event);
+				}
 				break;
 		}
 	}
@@ -1002,17 +474,13 @@ void GemApp::WindowEventHandler(SDL_WindowEvent& ev)
 {
 	if (ev.event == SDL_WINDOWEVENT_CLOSE)
 	{
-		for (GemWindow* window : windows)
-		{
-			if (window->Id() == ev.windowID)
-				window->Close();
-		}
+		mainWindow->Close();
 	}
 }
 
 void GemApp::DropEventHandler(SDL_DropEvent& ev)
 {
-	if (ev.windowID == main_window->Id() && filesystem::exists(ev.file))
+	if (ev.windowID == mainWindow->Id() && filesystem::exists(ev.file))
 	{
 		drop_event_file = string(ev.file);
 	}
@@ -1046,73 +514,14 @@ void GemApp::KeyReleaseHandler(SDL_KeyboardEvent& ev)
 	else if (ev.keysym.sym == config.SelectKey) core.GetJoypad()->Release(JoypadKey::Select);
 }
 
-void GemApp::OpenCloseWindows()
-{
-	auto& config = GemConfig::Get();
-
-	if (thstate.ShowTilesWindow)
-	{
-		if (tiles_window == nullptr)
-		{
-			tiles_window = new GemWindow("Tiles", GPU::TileViewWidth, GPU::TileViewHeight, nullptr, config.VSync, config.ResolutionScale);
-			windows.push_back(tiles_window);
-		}
-		else if (!tiles_window->IsOpen())
-		{
-			tiles_window->Open();
-		}
-	}
-	else if (tiles_window != nullptr && tiles_window->IsOpen())
-	{
-		tiles_window->Close();
-	}
-
-	if (thstate.ShowPalettesWindow)
-	{
-		if (palettes_window == nullptr)
-		{
-			palettes_window = new GemWindow("Palettes", GPU::PalettesViewWidth, GPU::PalettesViewHeight, nullptr, config.VSync, config.ResolutionScale);
-			windows.push_back(palettes_window);
-		}
-		else if (!palettes_window->IsOpen())
-		{
-			palettes_window->Open();
-		}
-	}
-	else if (palettes_window != nullptr && palettes_window->IsOpen())
-	{
-		palettes_window->Close();
-	}
-
-	if (thstate.ShowSpritesWindow)
-	{
-		if (sprites_window == nullptr)
-		{
-			sprites_window = new GemWindow("Sprites", GPU::SpritesViewWidth, GPU::SpritesViewHeight, nullptr, config.VSync, config.ResolutionScale);
-			windows.push_back(sprites_window);
-		}
-		else if (!sprites_window->IsOpen())
-		{
-			sprites_window->Open();
-		}
-	}
-	else if (sprites_window != nullptr && sprites_window->IsOpen())
-	{
-		sprites_window->Close();
-	}
-}
-
 void GemApp::HandleDropEventFileChanged()
 {
 	if (!drop_event_file.empty())
 	{
-		rom_file = drop_event_file;
+		GMsgPad.ROMPath = drop_event_file;
 		drop_event_file.clear();
 
 		if (InitCore())
-		{
-			GemConsole::PrintPrompt();
 			SetWindowTitles();
-		}
 	}
 }

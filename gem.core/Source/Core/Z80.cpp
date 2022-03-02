@@ -65,14 +65,14 @@ void Z80::SetMMU(std::shared_ptr<MMU> ptr)
 // Returns how many M cycles it took to execute the instruction
 int Z80::Execute(uint16_t inst)
 {
-	Instruction instruction = static_cast<Instruction>(inst);
+	OpCode opcode = static_cast<OpCode>(inst);
 	int m_cycles = 0;
 
 #ifdef ENABLE_VERBOSE_LOGGING
 	stringstream verbose_log_message;
 #endif
 
-	switch (instruction)
+	switch (opcode)
 	{
 		case EXT:
 		{
@@ -455,7 +455,7 @@ int Z80::Execute(uint16_t inst)
 			uint8_t condition_code = MaskAndShiftRight(uint8_t(inst), 0x38, 3);
 			bool condition_met = false;
 
-			if (inst == Instruction::CALL)
+			if (inst == OpCode::CALL)
 			{
 				condition_met = true; // CALL unconditionally with this instruction
 			}
@@ -1267,7 +1267,7 @@ int Z80::Execute(uint16_t inst)
 			uint8_t condition_code = MaskAndShiftRight(uint8_t(inst), 0x38, 3);
 			bool condition_met = false;
 
-			if (inst == Instruction::RET)
+			if (inst == OpCode::RET)
 			{
 				condition_met = true; // RET unconditionally with this instruction
 			}
@@ -2136,69 +2136,3 @@ inline uint8_t Z80::ShiftByte(uint8_t value, Direction dir, ShiftType type)
 
 	return value;
 }
-
-map<Instruction, const char*> Z80::InstructionNameLookup = {
-	{ EXT, "EXT" },{ ADCB, "ADCB" },{ ADCC, "ADCC" },{ ADCD, "ADCD" },{ ADCE, "ADCE" },{ ADCH, "ADCH" },{ ADCL, "ADCL" },{ ADCHL, "ADCHL" },
-	{ ADCA, "ADCA" },{ ADCn, "ADCn" },{ ADDB, "ADDB" },{ ADDC, "ADDC" },{ ADDD, "ADDD" },{ ADDE, "ADDE" },{ ADDH, "ADDH" },{ ADDL, "ADDL" },
-	{ ADDHL, "ADDHL" },{ ADDA, "ADDA" },{ ADDn, "ADDn" },{ ADDHL_BC, "ADDHL_BC" },{ ADDHL_DE, "ADDHL_DE" },{ ADDHL_HL, "ADDHL_HL" },{ ADDHL_SP, "ADDHL_SP" },{ ADDSP_n, "ADDSP_n" },
-	{ ANDB, "ANDB" },{ ANDC, "ANDC" },{ ANDD, "ANDD" },{ ANDE, "ANDE" },{ ANDH, "ANDH" },{ ANDL, "ANDL" },{ ANDHL, "ANDHL" },{ ANDA, "ANDA" },{ ANDN, "ANDN" },
-	{ BIT_0B, "BIT_0B" },{ BIT_0C, "BIT_0C" },{ BIT_0D, "BIT_0D" },{ BIT_0E, "BIT_0E" },{ BIT_0H, "BIT_0H" },{ BIT_0L, "BIT_0L" },{ BIT_0HL, "BIT_0HL" },{ BIT_0A, "BIT_0A" },
-	{ BIT_1B, "BIT_1B" },{ BIT_1C, "BIT_1C" },{ BIT_1D, "BIT_1D" },{ BIT_1E, "BIT_1E" },{ BIT_1H, "BIT_1H" },{ BIT_1L, "BIT_1L" },{ BIT_1HL, "BIT_1HL" },{ BIT_1A, "BIT_1A" },
-	{ BIT_2B, "BIT_2B" },{ BIT_2C, "BIT_2C" },{ BIT_2D, "BIT_2D" },{ BIT_2E, "BIT_2E" },{ BIT_2H, "BIT_2H" },{ BIT_2L, "BIT_2L" },{ BIT_2HL, "BIT_2HL" },{ BIT_2A, "BIT_2A" },
-	{ BIT_3B, "BIT_3B" },{ BIT_3C, "BIT_3C" },{ BIT_3D, "BIT_3D" },{ BIT_3E, "BIT_3E" },{ BIT_3H, "BIT_3H" },{ BIT_3L, "BIT_3L" },{ BIT_3HL, "BIT_3HL" },{ BIT_3A, "BIT_3A" },
-	{ BIT_4B, "BIT_4B" },{ BIT_4C, "BIT_4C" },{ BIT_4D, "BIT_4D" },{ BIT_4E, "BIT_4E" },{ BIT_4H, "BIT_4H" },{ BIT_4L, "BIT_4L" },{ BIT_4HL, "BIT_4HL" },{ BIT_4A, "BIT_4A" },
-	{ BIT_5B, "BIT_5B" },{ BIT_5C, "BIT_5C" },{ BIT_5D, "BIT_5D" },{ BIT_5E, "BIT_5E" },{ BIT_5H, "BIT_5H" },{ BIT_5L, "BIT_5L" },{ BIT_5HL, "BIT_5HL" },{ BIT_5A, "BIT_5A" },
-	{ BIT_6B, "BIT_6B" },{ BIT_6C, "BIT_6C" },{ BIT_6D, "BIT_6D" },{ BIT_6E, "BIT_6E" },{ BIT_6H, "BIT_6H" },{ BIT_6L, "BIT_6L" },{ BIT_6HL, "BIT_6HL" },{ BIT_6A, "BIT_6A" },
-	{ BIT_7B, "BIT_7B" },{ BIT_7C, "BIT_7C" },{ BIT_7D, "BIT_7D" },{ BIT_7E, "BIT_7E" },{ BIT_7H, "BIT_7H" },{ BIT_7L, "BIT_7L" },{ BIT_7HL, "BIT_7HL" },{ BIT_7A, "BIT_7A" },
-	{ CALLNZ_nn, "CALLNZ_nn" },{ CALLZ_nn, "CALLZ_nn" },{ CALL, "CALL" },{ CALLNC_nn, "CALLNC_nn" },{ CALLC_nn, "CALLC_nn" },{ CCF, "CCF" },{ CPB, "CPB" },{ CPC, "CPC" },
-	{ CPD, "CPD" },{ CPE, "CPE" },{ CPH, "CPH" },{ CPL, "CPL" },{ CPHL, "CPHL" },{ CPA, "CPA" },{ CPn, "CPn" },{ CPRA, "CPRA" },
-	{ DAA, "DAA" },{ DECB, "DECB" },{ DECBC, "DECBC" },{ DECC, "DECC" },{ DECD, "DECD" },{ DECDE, "DECDE" },{ DECE, "DECE" },{ DECH, "DECH" },
-	{ DECHL, "DECHL" },{ DECL, "DECL" },{ DECmHL, "DECmHL" },{ DECSP, "DECSP" },{ DECA, "DECA" },{ DI, "DI" },{ EI, "EI" },{ HALT, "HALT" },
-	{ INCBC, "INCBC" },{ INCB, "INCB" },{ INCC, "INCC" },{ INCDE, "INCDE" },{ INCD, "INCD" },{ INCE, "INCE" },{ INCHL, "INCHL" },{ INCH, "INCH" },
-	{ INCL, "INCL" },{ INCSP, "INCSP" },{ INCmHL, "INCmHL" },{ INCA, "INCA" },{ JPNZ_nn, "JPNZ_nn" },{ JP_nn, "JP_nn" },{ JPZ_nn, "JPZ_nn" },{ JPNC_nn, "JPNC_nn" },
-	{ JPC_nn, "JPC_nn" },{ JPHL, "JPHL" },{ JR_n, "JR_n" },{ JRNZ_n, "JRNZ_n" },{ JRZ_n, "JRZ_n" },{ JRNC_n, "JRNC_n" },{ JRC_n, "JRC_n" },{ LDBC_nn, "LDBC_nn" },
-	{ LDBC_A, "LDBC_A" },{ LDB_n, "LDB_n" },{ LDnn_SP, "LDnn_SP" },{ LDA_BC, "LDA_BC" },{ LDC_n, "LDC_n" },{ LDDE_nn, "LDDE_nn" },{ LDDE_A, "LDDE_A" },{ LDD_n, "LDD_n" },
-	{ LDA_DE, "LDA_DE" },{ LDE_n, "LDE_n" },{ LDHL_nn, "LDHL_nn" },{ LDIHL_A, "LDIHL_A" },{ LDH_n, "LDH_n" },{ LDIA_HL, "LDIA_HL" },{ LDL_n, "LDL_n" },{ LDSP_nn, "LDSP_nn" },
-	{ LDDHL_A, "LDDHL_A" },{ LDHL_n, "LDHL_n" },{ LDDA_HL, "LDDA_HL" },{ LDA_n, "LDA_n" },{ LDB_B, "LDB_B" },{ LDB_C, "LDB_C" },{ LDB_D, "LDB_D" },{ LDB_E, "LDB_E" },
-	{ LDB_H, "LDB_H" },{ LDB_L, "LDB_L" },{ LDB_HL, "LDB_HL" },{ LDB_A, "LDB_A" },{ LDC_B, "LDC_B" },{ LDC_C, "LDC_C" },{ LDC_D, "LDC_D" },{ LDC_E, "LDC_E" },
-	{ LDC_H, "LDC_H" },{ LDC_L, "LDC_L" },{ LDC_HL, "LDC_HL" },{ LDC_A, "LDC_A" },{ LDD_B, "LDD_B" },{ LDD_C, "LDD_C" },{ LDD_D, "LDD_D" },{ LDD_E, "LDD_E" },
-	{ LDD_H, "LDD_H" },{ LDD_L, "LDD_L" },{ LDD_HL, "LDD_HL" },{ LDD_A, "LDD_A" },{ LDE_B, "LDE_B" },{ LDE_C, "LDE_C" },{ LDE_D, "LDE_D" },{ LDE_E, "LDE_E" },
-	{ LDE_H, "LDE_H" },{ LDE_L, "LDE_L" },{ LDE_HL, "LDE_HL" },{ LDE_A, "LDE_A" },{ LDH_B, "LDH_B" },{ LDH_C, "LDH_C" },{ LDH_D, "LDH_D" },{ LDH_E, "LDH_E" },
-	{ LDH_H, "LDH_H" },{ LDH_L, "LDH_L" },{ LDH_HL, "LDH_HL" },{ LDH_A, "LDH_A" },{ LDL_B, "LDL_B" },{ LDL_C, "LDL_C" },{ LDL_D, "LDL_D" },{ LDL_E, "LDL_E" },
-	{ LDL_H, "LDL_H" },{ LDL_L, "LDL_L" },{ LDL_HL, "LDL_HL" },{ LDL_A, "LDL_A" },{ LDHL_B, "LDHL_B" },{ LDHL_C, "LDHL_C" },{ LDHL_D, "LDHL_D" },{ LDHL_E, "LDHL_E" },
-	{ LDHL_H, "LDHL_H" },{ LDHL_L, "LDHL_L" },{ LDHL_A, "LDHL_A" },{ LDA_B, "LDA_B" },{ LDA_C, "LDA_C" },{ LDA_D, "LDA_D" },{ LDA_E, "LDA_E" },{ LDA_H, "LDA_H" },
-	{ LDA_L, "LDA_L" },{ LDA_HL, "LDA_HL" },{ LDA_A, "LDA_A" },{ LDhn_A, "LDhn_A" },{ LDhC_A, "LDhC_A" },{ LDnn_A, "LDnn_A" },{ LDhA_n, "LDhA_n" },{ LDhA_C, "LDhA_C" },
-	{ LDHL_SPd, "LDHL_SPd" },{ LDSP_HL, "LDSP_HL" },{ LDA_nn, "LDA_nn" },{ NOP, "NOP" },{ ORB, "ORB" },{ ORC, "ORC" },{ ORD, "ORD" },{ ORE, "ORE" },
-	{ ORH, "ORH" },{ ORL, "ORL" },{ ORHL, "ORHL" },{ ORA, "ORA" },{ ORn, "ORn" },{ POP_BC, "POP_BC" },{ POP_DE, "POP_DE" },{ POP_HL, "POP_HL" },
-	{ POP_AF, "POP_AF" },{ PUSH_BC, "PUSH_BC" },{ PUSH_DE, "PUSH_DE" },{ PUSH_HL, "PUSH_HL" },{ PUSH_AF, "PUSH_AF" },{ RETNZ, "RETNZ" },{ RETZ, "RETZ" },{ RET, "RET" },
-	{ RETNC, "RETNC" },{ RETC, "RETC" },{ RETI, "RETI" },{ RLC_B, "RLC_B" },{ RLC_C, "RLC_C" },{ RLC_D, "RLC_D" },{ RLC_E, "RLC_E" },{ RLC_H, "RLC_H" },
-	{ RLC_L, "RLC_L" },{ RLC_HL, "RLC_HL" },{ RLC_A, "RLC_A" },{ RLC_A_2B, "RLC_A_2B" },{ RRC_B, "RRC_B" },{ RRC_C, "RRC_C" },{ RRC_D, "RRC_D" },{ RRC_E, "RRC_E" },
-	{ RRC_H, "RRC_H" },{ RRC_L, "RRC_L" },{ RRC_HL, "RRC_HL" },{ RRC_A, "RRC_A" },{ RRC_A_2B, "RRC_A_2B" },{ RLB, "RLB" },{ RLC, "RLC" },{ RLD, "RLD" },
-	{ RLE, "RLE" },{ RLH, "RLH" },{ RLL, "RLL" },{ RLHL, "RLHL" },{ RLA, "RLA" },{ RLA_2B, "RLA_2B" },{ RRB, "RRB" },{ RRC, "RRC" },
-	{ RRD, "RRD" },{ RRE, "RRE" },{ RRH, "RRH" },{ RRL, "RRL" },{ RRHL, "RRHL" },{ RRA, "RRA" },{ RRA_2B, "RRA_2B" },{ SLAB, "SLAB" },
-	{ SLAC, "SLAC" },{ SLAD, "SLAD" },{ SLAE, "SLAE" },{ SLAH, "SLAH" },{ SLAL, "SLAL" },{ SLAHL, "SLAHL" },{ SLAA, "SLAA" },{ SRAB, "SRAB" },
-	{ SRAC, "SRAC" },{ SRAD, "SRAD" },{ SRAE, "SRAE" },{ SRAH, "SRAH" },{ SRAL, "SRAL" },{ SRAHL, "SRAHL" },{ SRAA, "SRAA" },{ SRLB, "SRLB" },
-	{ SRLC, "SRLC" },{ SRLD, "SRLD" },{ SRLE, "SRLE" },{ SRLH, "SRLH" },{ SRLL, "SRLL" },{ SRLHL, "SRLHL" },{ SRLA, "SRLA" },{ SCF, "SCF" },
-	{ STOP, "STOP" },{ RST0, "RST0" },{ RST10, "RST10" },{ RST20, "RST20" },{ RST30, "RST30" },{ RST8, "RST8" },{ RST18, "RST18" },{ RST28, "RST28" },
-	{ RST38, "RST38" },{ SBCA_B, "SBCA_B" },{ SBCA_C, "SBCA_C" },{ SBCA_D, "SBCA_D" },{ SBCA_E, "SBCA_E" },{ SBCA_H, "SBCA_H" },{ SBCA_L, "SBCA_L" },{ SBCA_HL, "SBCA_HL" },
-	{ SBCA_A, "SBCA_A" },{ SBCA_n, "SBCA_n" },{ SUBA_B, "SUBA_B" },{ SUBA_C, "SUBA_C" },{ SUBA_D, "SUBA_D" },{ SUBA_E, "SUBA_E" },{ SUBA_H, "SUBA_H" },{ SUBA_L, "SUBA_L" },
-	{ SUBA_HL, "SUBA_HL" },{ SUBA_A, "SUBA_A" },{ SUBA_n, "SUBA_n" },{ SWAPB, "SWAPB" },{ SWAPC, "SWAPC" },{ SWAPD, "SWAPD" },{ SWAPE, "SWAPE" },{ SWAPH, "SWAPH" },
-	{ SWAPL, "SWAPL" },{ SWAPHL, "SWAPHL" },{ SWAPA, "SWAPA" },{ RES_0B, "RES_0B" },{ RES_0C, "RES_0C" },{ RES_0D, "RES_0D" },{ RES_0E, "RES_0E" },{ RES_0H, "RES_0H" },
-	{ RES_0L, "RES_0L" },{ RES_0HL, "RES_0HL" },{ RES_0A, "RES_0A" },{ RES_1B, "RES_1B" },{ RES_1C, "RES_1C" },{ RES_1D, "RES_1D" },{ RES_1E, "RES_1E" },{ RES_1H, "RES_1H" },
-	{ RES_1L, "RES_1L" },{ RES_1HL, "RES_1HL" },{ RES_1A, "RES_1A" },{ RES_2B, "RES_2B" },{ RES_2C, "RES_2C" },{ RES_2D, "RES_2D" },{ RES_2E, "RES_2E" },{ RES_2H, "RES_2H" },
-	{ RES_2L, "RES_2L" },{ RES_2HL, "RES_2HL" },{ RES_2A, "RES_2A" },{ RES_3B, "RES_3B" },{ RES_3C, "RES_3C" },{ RES_3D, "RES_3D" },{ RES_3E, "RES_3E" },{ RES_3H, "RES_3H" },
-	{ RES_3L, "RES_3L" },{ RES_3HL, "RES_3HL" },{ RES_3A, "RES_3A" },{ RES_4B, "RES_4B" },{ RES_4C, "RES_4C" },{ RES_4D, "RES_4D" },{ RES_4E, "RES_4E" },{ RES_4H, "RES_4H" },
-	{ RES_4L, "RES_4L" },{ RES_4HL, "RES_4HL" },{ RES_4A, "RES_4A" },{ RES_5B, "RES_5B" },{ RES_5C, "RES_5C" },{ RES_5D, "RES_5D" },{ RES_5E, "RES_5E" },{ RES_5H, "RES_5H" },
-	{ RES_5L, "RES_5L" },{ RES_5HL, "RES_5HL" },{ RES_5A, "RES_5A" },{ RES_6B, "RES_6B" },{ RES_6C, "RES_6C" },{ RES_6D, "RES_6D" },{ RES_6E, "RES_6E" },{ RES_6H, "RES_6H" },
-	{ RES_6L, "RES_6L" },{ RES_6HL, "RES_6HL" },{ RES_6A, "RES_6A" },{ RES_7B, "RES_7B" },{ RES_7C, "RES_7C" },{ RES_7D, "RES_7D" },{ RES_7E, "RES_7E" },{ RES_7H, "RES_7H" },
-	{ RES_7L, "RES_7L" },{ RES_7HL, "RES_7HL" },{ RES_7A, "RES_7A" },{ SET_0B, "SET_0B" },{ SET_0C, "SET_0C" },{ SET_0D, "SET_0D" },{ SET_0E, "SET_0E" },{ SET_0H, "SET_0H" },
-	{ SET_0L, "SET_0L" },{ SET_0HL, "SET_0HL" },{ SET_0A, "SET_0A" },{ SET_1B, "SET_1B" },{ SET_1C, "SET_1C" },{ SET_1D, "SET_1D" },{ SET_1E, "SET_1E" },{ SET_1H, "SET_1H" },
-	{ SET_1L, "SET_1L" },{ SET_1HL, "SET_1HL" },{ SET_1A, "SET_1A" },{ SET_2B, "SET_2B" },{ SET_2C, "SET_2C" },{ SET_2D, "SET_2D" },{ SET_2E, "SET_2E" },{ SET_2H, "SET_2H" },
-	{ SET_2L, "SET_2L" },{ SET_2HL, "SET_2HL" },{ SET_2A, "SET_2A" },{ SET_3B, "SET_3B" },{ SET_3C, "SET_3C" },{ SET_3D, "SET_3D" },{ SET_3E, "SET_3E" },{ SET_3H, "SET_3H" },
-	{ SET_3L, "SET_3L" },{ SET_3HL, "SET_3HL" },{ SET_3A, "SET_3A" },{ SET_4B, "SET_4B" },{ SET_4C, "SET_4C" },{ SET_4D, "SET_4D" },{ SET_4E, "SET_4E" },{ SET_4H, "SET_4H" },
-	{ SET_4L, "SET_4L" },{ SET_4HL, "SET_4HL" },{ SET_4A, "SET_4A" },{ SET_5B, "SET_5B" },{ SET_5C, "SET_5C" },{ SET_5D, "SET_5D" },{ SET_5E, "SET_5E" },{ SET_5H, "SET_5H" },
-	{ SET_5L, "SET_5L" },{ SET_5HL, "SET_5HL" },{ SET_5A, "SET_5A" },{ SET_6B, "SET_6B" },{ SET_6C, "SET_6C" },{ SET_6D, "SET_6D" },{ SET_6E, "SET_6E" },{ SET_6H, "SET_6H" },
-	{ SET_6L, "SET_6L" },{ SET_6HL, "SET_6HL" },{ SET_6A, "SET_6A" },{ SET_7B, "SET_7B" },{ SET_7C, "SET_7C" },{ SET_7D, "SET_7D" },{ SET_7E, "SET_7E" },{ SET_7H, "SET_7H" },
-	{ SET_7L, "SET_7L" },{ SET_7HL, "SET_7HL" },{ SET_7A, "SET_7A" },{ XORB, "XORB" },{ XORC, "XORC" },{ XORD, "XORD" },{ XORE, "XORE" },{ XORH, "XORH" },
-	{ XORL, "XORL" },{ XORHL, "XORHL" },{ XORA, "XORA" },{ XORn, "XORn" }
-};

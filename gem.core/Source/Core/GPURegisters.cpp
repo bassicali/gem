@@ -10,16 +10,16 @@ using namespace std;
 ////////////////////////////
 
 // Initial value = 0x91
-LCDControlRegister::LCDControlRegister() :
-	Enabled(true),					// Bit 7
-	WindowTileMapSelect(0),			// Bit 6
-	WindowEnabled(false),			// Bit 5
-	BgWindowTileDataSelect(1),		// Bit 4
-	BgTileMapSelect(0),				// Bit 3
-	SpriteSize(0),					// Bit 2
-	SpriteEnabled(false),			// Bit 1
-	BgDisplay(true),				// Bit 0
-	RegisterByte(0x90)
+LCDControlRegister::LCDControlRegister()
+	: Enabled(true)					// Bit 7
+	, WindowTileMapSelect(0)			// Bit 6
+	, WindowEnabled(false)			// Bit 5
+	, BgWindowTileDataSelect(1)		// Bit 4
+	, BgTileMapSelect(0)				// Bit 3
+	, SpriteSize(0)					// Bit 2
+	, SpriteEnabled(false)			// Bit 1
+	, BgDisplay(true)				// Bit 0
+	, RegisterByte(0x90)
 {
 }
 
@@ -78,13 +78,13 @@ LCDStatusRegister::LCDStatusRegister() : LCDStatusRegister(true)
 {
 }
 
-LCDStatusRegister::LCDStatusRegister(bool bCGB) :
-	LycLyCoincidenceIntEnabled(false), // Bit 6
-	OamIntEnabled(false), // Bit 5
-	VBlankIntEnabled(false), // Bit 4
-	HBlankIntEnabled(false), // Bit 3
-	Mode(LCDMode::VBlank), // Bit 1-0,
-	RegisterByte(0x1)
+LCDStatusRegister::LCDStatusRegister(bool bCGB)
+	: LycLyCoincidenceIntEnabled(false) // Bit 6
+	, OamIntEnabled(false) // Bit 5
+	, VBlankIntEnabled(false) // Bit 4
+	, HBlankIntEnabled(false) // Bit 3
+	, Mode(LCDMode::VBlank) // Bit 1-0
+	, RegisterByte(0x1)
 {
 	// From observing BGB, it appears this is the only difference between CGB and non-CGB mode
 	// Bit 4
@@ -117,7 +117,8 @@ uint8_t LCDStatusRegister::ReadByte() const
 ///////////////////////////
 ///    LCD Positions    ///
 ///////////////////////////
-LCDPositions::LCDPositions() : LCDPositions(true)
+LCDPositions::LCDPositions() 
+: LCDPositions(true)
 {
 }
 
@@ -129,7 +130,7 @@ LCDPositions::LCDPositions(bool bCGB)
 
 void LCDPositions::Reset(bool bCGB)
 {
-	ScrollY = ScrollX = LycLyCompare = WindowX = WindowY = WindowLineY = 0;
+	ScrollY = ScrollX = LineYCompare = WindowX = WindowY = WindowLineY = 0;
 	LineY = bCGB ? 0x94 : 0x90;
 }
 

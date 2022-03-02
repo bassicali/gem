@@ -14,6 +14,8 @@ struct GemConfig
 	bool VSync;
 	float ResolutionScale;
 	std::string DMGPalette;
+	bool ShowDebugger;
+	bool ShowConsole;
 
 	// NOTE: these settings aren't meant to be persisted in the ini file, this class
 	// basically just holds their values which come from the command line.

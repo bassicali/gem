@@ -11,7 +11,9 @@
       <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\$(SDL_TTF_DirectoryName)\lib\x64\SDL2_ttf.dll"/>
       <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\$(SDL_TTF_DirectoryName)\lib\x64\libfreetype-6.dll"/>
       <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\zlib\bin\x64\zlib1.dll"/>
-      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\CascadiaCode\CascadiaMono.ttf"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\fonts\CascadiaCode\CascadiaMono.ttf"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\fonts\imgui\DroidSans.ttf"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\fonts\fa-solid-900.ttf"/>
     </ItemGroup>
     
     <Copy SourceFiles="@(RuntimeDependencies)" DestinationFolder="$(OutDir)"/>

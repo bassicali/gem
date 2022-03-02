@@ -26,7 +26,46 @@ enum class ShiftType
 ** all CALLs
 */
 
-enum Instruction
+struct OpCodeInfo
+{
+	OpCodeInfo()
+		: OpCode(0)
+
+	{
+	}
+	
+	OpCodeInfo(uint16_t opcode, std::string enum_name, std::string mnemonic)
+		: EnumName(enum_name)
+		, OpCode(opcode)
+		, Mnemonic(mnemonic)
+	{
+	}
+	std::string EnumName;
+	uint16_t OpCode;
+	std::string Mnemonic;
+};
+
+class OpCodeIndex
+{
+public:
+	OpCodeIndex();
+	~OpCodeIndex();
+
+	bool Lookup(uint16_t opcode, OpCodeInfo& info);
+	bool Contains(uint16_t opcode);
+	int GetImmSize(uint16_t inst);
+
+	OpCodeInfo& operator[](int index);
+
+	static OpCodeIndex& Get();
+
+private:
+	short* usedIndices;
+	short* opcodeToIdxMap;
+	OpCodeInfo* list;
+};
+
+enum OpCode
 {
 	/* Special instruction that redirections to the CBXX instructions */
 	EXT = 0xCB,
@@ -650,59 +689,4 @@ enum Instruction
 	XORn = 0xEE, // A <- A ^n
 };
 
-
-inline int GetInstructionImmSize(Instruction inst)
-{
-	switch (inst)
-	{
-		case ADCn:
-		case ADDn:
-		case ADDSP_n:
-		case ANDN:
-		case ORn:
-		case XORn:
-		case CPn:
-		case JRNZ_n:
-		case JRZ_n:
-		case JRNC_n:
-		case JRC_n:
-		case JR_n:
-		case LDHL_n:
-		case LDhn_A:
-		case LDhA_n:
-		case LDhA_C:
-		case LDHL_SPd:
-		case SBCA_n:
-		case SUBA_n:
-		case LDB_n:
-		case LDC_n:
-		case LDD_n:
-		case LDE_n:
-		case LDH_n:
-		case LDL_n:
-		case LDA_n:
-			return 1;
-		
-		case CALLZ_nn:
-		case CALLNZ_nn:
-		case CALLC_nn:
-		case CALLNC_nn:
-		case CALL:
-		case JPNZ_nn:
-		case JPZ_nn:
-		case JPNC_nn:
-		case JPC_nn:
-		case JP_nn:
-		case LDBC_nn:
-		case LDDE_nn:
-		case LDHL_nn:
-		case LDSP_nn:
-		case LDnn_A:
-		case LDA_nn:
-		case LDnn_SP:
-			return 2;
-
-		default:
-			return 0;
-	}
-}
+int GetInstructionImmSize(OpCode inst);

@@ -8,22 +8,20 @@
 
 using namespace std;
 
-GPU::GPU() : 
-	vram(VRAMSize, true),
-	oam(OAMSize, true),
-	bgColourPalette(string("BG Palette")),
-	sprColourPalette(string("Sprite Palette")),
-	tileViewBuffer(TileViewWidth, TileViewWidth),
-	spriteViewBuffer(SpritesViewWidth, SpritesViewHeight),
-	frameBuffer(LCDWidth, LCDHeight),
-	correctionMode(CorrectionMode::Washout),
-	brightness(1.0f),
-	bCGB(false),
-	tAcc(0),
-	dmaDest(0),
-	dmaSrc(0),
-	vramBank(0),
-	vramOffset(0)
+GPU::GPU()
+	: vram(VRAMSize, true)
+	, oam(OAMSize, true)
+	, bgColourPalette(string("BG Palette"))
+	, sprColourPalette(string("Sprite Palette"))
+	, frameBuffer(LCDWidth, LCDHeight)
+	, correctionMode(CorrectionMode::Washout)
+	, brightness(1.0f)
+	, bCGB(false)
+	, tAcc(0)
+	, dmaDest(0)
+	, dmaSrc(0)
+	, vramBank(0)
+	, vramOffset(0)
 {
 }
 
@@ -198,7 +196,7 @@ void GPU::IncLineY()
 
 void GPU::LycLyCompare()
 {
-	if (positions.LineY == positions.LycLyCompare)
+	if (positions.LineY == positions.LineYCompare)
 	{
 		stat.LycLyCoincidence = true;
 
@@ -612,7 +610,7 @@ void GPU::WriteRegister(uint16_t addr, uint8_t value)
 			positions.WindowLineY = 0;
 			break;
 		case 0xFF45:
-			positions.LycLyCompare = value;
+			positions.LineYCompare = value;
 			break;
 		case 0xFF46:
 			DmaTransferToOam(value);
@@ -698,7 +696,7 @@ uint8_t GPU::ReadRegister(uint16_t addr)
 		case 0xFF44:
 			return positions.LineY;
 		case 0xFF45:
-			return positions.LycLyCompare;
+			return positions.LineYCompare;
 		case 0xFF47:
 			return bgMonoPalette.ReadBgPalette();
 		case 0xFF48:
@@ -817,131 +815,81 @@ void GPU::WriteByteOAM(uint16_t addr, uint8_t value)
 	sprites[sprite_index].DecodeFromOAM(base_addr, oam.Ptr() + sprite_index * 4);
 }
 
-// Creates a visual representation of all the tiles in VRAM
-void GPU::ComputeTileViewBuffer()
+void GPU::RenderTilesViz(ColourBuffer* out_buffers, CgbTileAttribute* out_attrs)
 {
-	// TODO: rewrite
-
-	// The tiles will be arranged as tile set #1 as a 16x16 8x8px grid up top (128x128 pixels)
-	// Tile set #0 will also be a 16x16 grid below that (also 128x128 pixels)
-	// These two grids will be mirrored on the left for bank 1. This gives the 256x256 frame size.
-	if (!tileViewBuffer.IsAllocated())
-	{
-		tileViewBuffer.Allocate();
-		tileViewBuffer.Reserve();
-	}
-
 	static TilePixelRow pixels;
 	uint8_t b0;
 	uint8_t b1;
 
-	CgbTileAttribute tile_attr;
-	tile_attr.Palette = 0;
+	int offset = 0;control.GetTileDataVRamIndex();
 
-	// Tile set #1 in Bank 0
-	// 8000h-87FFh: 0 to 127
-	// 8800h-8FFFh: 128 to 255
-	for (int i = 0; i < 256; i++)
+	for (int idx = 0; idx < GPU::NumTilesPerSet; idx++)
 	{
-		//// index = (base addr) + (tile number) * (16 bytes per tile)
-		//int index = i * 16;
+		int vram_idx = offset + idx * 16;
 
-		//if (bCGB)
-		//	tile_attr.DecodeFromByte(vram[0x2000 + index]);
+		CgbTileAttribute& tile_attr = out_attrs[idx];
+		tile_attr.DecodeFromByte(bCGB ? vram[vram_idx] : 0);
 
-		//// For each row in the tile
-		//for (int r = 0; r < 8; r++)
-		//{
-		//	// adjust index by: row * 2 bytes per row
-		//	index += r * 2;
-		//	b0 = vram[index];
-		//	b1 = vram[index + 1];
-		//	DecodePixels(pixels, b0, b1, false);
+		int data_idx = vram_idx;
+		ColourBuffer& viz_buffer = out_buffers[idx];
 
-		//	// 16x16 grid arrangement of 8x8 pixel tiles
-		//	int frame_row = ((i / 16) * 8) + r;
-		//	int frame_col = (i % 16) * 8;
-		//	UpdateFrameWithTileRow(TileViewBuffer, pixels, frame_row, frame_col, tile_attr.Palette);
-		//}
+		for (int r = 0; r < 8; r++)
+		{
+			data_idx += r * 2;
+
+			b0 = vram[data_idx];
+			b1 = vram[data_idx + 1];
+			DecodePixels(pixels, b0, b1, bCGB && tile_attr.HorizontalFlip);
+
+			if (bCGB)
+			{
+				viz_buffer.SetPixel(0, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[0]));
+				viz_buffer.CorrectPixel(0, r);
+				viz_buffer.SetPixel(1, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[1]));
+				viz_buffer.CorrectPixel(1, r);
+				viz_buffer.SetPixel(2, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[2]));
+				viz_buffer.CorrectPixel(2, r);
+				viz_buffer.SetPixel(3, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[3]));
+				viz_buffer.CorrectPixel(3, r);
+				viz_buffer.SetPixel(4, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[4]));
+				viz_buffer.CorrectPixel(4, r);
+				viz_buffer.SetPixel(5, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[5]));
+				viz_buffer.CorrectPixel(5, r);
+				viz_buffer.SetPixel(6, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[6]));
+				viz_buffer.CorrectPixel(6, r);
+				viz_buffer.SetPixel(7, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[7]));
+				viz_buffer.CorrectPixel(7, r);
+			}
+			else
+			{
+				viz_buffer.SetPixel(0, r, bgMonoPalette.GetColour(pixels[0]));
+				viz_buffer.SetPixel(1, r, bgMonoPalette.GetColour(pixels[1]));
+				viz_buffer.SetPixel(2, r, bgMonoPalette.GetColour(pixels[2]));
+				viz_buffer.SetPixel(3, r, bgMonoPalette.GetColour(pixels[3]));
+				viz_buffer.SetPixel(4, r, bgMonoPalette.GetColour(pixels[4]));
+				viz_buffer.SetPixel(5, r, bgMonoPalette.GetColour(pixels[5]));
+				viz_buffer.SetPixel(6, r, bgMonoPalette.GetColour(pixels[6]));
+				viz_buffer.SetPixel(7, r, bgMonoPalette.GetColour(pixels[7]));
+			}
+		}
 	}
-
-	// Tile set #0 in Bank 0
-	// 8800h-8FFFh: -128 to -1
-	// 9000h-97FFh: 0 to 127
-	for (int i = 0; i < 256; i++)
-	{
-	//	int index = 0x800 + i * 16;
-	//	if (bCGB)
-	//		tile_attr.DecodeFromByte(vram[0x2000 + index]);
-
-	//	for (int r = 0; r < 8; r++)
-	//	{
-	//		index += r * 2;
-	//		b0 = vram[index];
-	//		b1 = vram[index + 1];
-	//		DecodePixels(pixels, b0, b1, false);
-
-	//		// 16x16 grid arrangement of 8x8 pixel tiles
-	//		int frame_row = ((i / 16) * 8) + r + 128;
-	//		int frame_col = (i % 16) * 8;
-	//		UpdateFrameWithTileRow(TileViewBuffer, pixels, frame_row, frame_col, tile_attr.Palette);
-	//	}
-	}
-
 }
 
-void GPU::DrawSpritesViewBuffer(IDrawTarget& target)
+void GPU::RenderSpritesViz(ColourBuffer* out_buffers, SpriteData* out_sprites)
 {
-	struct TextDrawInfo
-	{
-		char Text[32];
-		int X;
-		int Y;
-
-		TextDrawInfo()
-			: X(0), Y(0)
-		{
-			memset(Text, 0, 32 * sizeof(char));
-		}
-
-		TextDrawInfo(const char* str, int len, int x, int y)
-			: X(x), Y(y)
-		{
-			if (len > 32)
-				throw exception("Text string too long");
-
-			memcpy(Text, str, len * sizeof(char));
-			Text[31] = '\0';
-		}
-	};
-
-#define FONT_SIZE 12
-// TODO: SetPixel and CorrectPixel duplicate the index calculation
-#define DRAW_PX_COLOUR(i) spriteViewBuffer.SetPixel(tile_draw_xpos + i, tile_draw_ypos + ln, sprColourPalette.GetColour(sprite.CGBPalette, pixels[i])); spriteViewBuffer.CorrectPixel(tile_draw_xpos + i, tile_draw_ypos + ln);
-#define DRAW_PX_MONOCHROME(i) spriteViewBuffer.SetPixel(tile_draw_xpos + i, tile_draw_ypos + ln, sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[i]));
-#define CLEAR_PX(i) spriteViewBuffer.SetPixel(tile_draw_xpos + i, tile_draw_ypos + ln, GemColour::White());
-
 	int sprite_height = control.SpriteSize == 0 ? 8 : 16;
 	static TilePixelRow pixels;
-	static DArray<TextDrawInfo> texts(2);
-	if (!texts.IsAllocated())
-		texts.Allocate();
-
-	texts.Truncate(0);
-	
-	if (!spriteViewBuffer.IsAllocated())
-	{
-		spriteViewBuffer.Allocate();
-		spriteViewBuffer.Reserve();
-	}
-
-	spriteViewBuffer.Fill(GemColour(133, 146, 158));
-
-	char textbuff[32];
 
 	for (int i = 0; i < NumSprites; i++)
 	{
 		const SpriteData& sprite = sprites[i];
+		out_sprites[i] = sprite;
+
+
+		ColourBuffer& curr_tile = out_buffers[i];
+		curr_tile.Fill(GemColour::White());
+		curr_tile.Width = 8;
+		curr_tile.Height = sprite_height;
 
 		// 4px padding around the tile within the grid cell
 		int tile_draw_xpos = (i % 8) * 19 + 4;
@@ -951,14 +899,14 @@ void GPU::DrawSpritesViewBuffer(IDrawTarget& target)
 		{
 			if (sprite.IsZero)
 			{
-				CLEAR_PX(0)
-				CLEAR_PX(1)
-				CLEAR_PX(2)
-				CLEAR_PX(3)
-				CLEAR_PX(4)
-				CLEAR_PX(5)
-				CLEAR_PX(6)
-				CLEAR_PX(7)
+				curr_tile[8 * ln + 0] = GemColour::White();
+				curr_tile[8 * ln + 1] = GemColour::White();
+				curr_tile[8 * ln + 2] = GemColour::White();
+				curr_tile[8 * ln + 3] = GemColour::White();
+				curr_tile[8 * ln + 4] = GemColour::White();
+				curr_tile[8 * ln + 5] = GemColour::White();
+				curr_tile[8 * ln + 6] = GemColour::White();
+				curr_tile[8 * ln + 7] = GemColour::White();
 			}
 			else
 			{
@@ -1000,108 +948,49 @@ void GPU::DrawSpritesViewBuffer(IDrawTarget& target)
 
 				if (bCGB)
 				{
-					DRAW_PX_COLOUR(0)
-					DRAW_PX_COLOUR(1)
-					DRAW_PX_COLOUR(2)
-					DRAW_PX_COLOUR(3)
-					DRAW_PX_COLOUR(4)
-					DRAW_PX_COLOUR(5)
-					DRAW_PX_COLOUR(6)
-					DRAW_PX_COLOUR(7)
+					curr_tile[8 * ln + 0] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[0]);
+					curr_tile[8 * ln + 0].Correct();
+					curr_tile[8 * ln + 1] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[1]);
+					curr_tile[8 * ln + 1].Correct();
+					curr_tile[8 * ln + 2] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[2]);
+					curr_tile[8 * ln + 2].Correct();
+					curr_tile[8 * ln + 3] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[3]);
+					curr_tile[8 * ln + 3].Correct();
+					curr_tile[8 * ln + 4] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[4]);
+					curr_tile[8 * ln + 4].Correct();
+					curr_tile[8 * ln + 5] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[5]);
+					curr_tile[8 * ln + 5].Correct();
+					curr_tile[8 * ln + 6] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[6]);
+					curr_tile[8 * ln + 6].Correct();
+					curr_tile[8 * ln + 7] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[7]);
+					curr_tile[8 * ln + 7].Correct();
 				}
 				else
 				{
-					DRAW_PX_MONOCHROME(0)
-					DRAW_PX_MONOCHROME(1)
-					DRAW_PX_MONOCHROME(2)
-					DRAW_PX_MONOCHROME(3)
-					DRAW_PX_MONOCHROME(4)
-					DRAW_PX_MONOCHROME(5)
-					DRAW_PX_MONOCHROME(6)
-					DRAW_PX_MONOCHROME(7)
+					curr_tile[8 * ln + 0] = sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[0]);
+					curr_tile[8 * ln + 1] = sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[1]);
+					curr_tile[8 * ln + 2] = sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[2]);
+					curr_tile[8 * ln + 3] = sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[3]);
+					curr_tile[8 * ln + 4] = sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[4]);
+					curr_tile[8 * ln + 5] = sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[5]);
+					curr_tile[8 * ln + 6] = sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[6]);
+					curr_tile[8 * ln + 7] = sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[7]);
 				}
 			}
 		}
-
-		memset(textbuff, 0, 32);
-		snprintf(textbuff, 32, "%40Xh", sprite.Address);
-		TextDrawInfo addr(textbuff, 32, tile_draw_xpos - 2, tile_draw_ypos + sprite_height + 1);
-		texts.PushBack(move(addr));
-
-		memset(textbuff, 0, 32);
-		snprintf(textbuff, 32, "(%3d,%3d)", sprite.XPos, sprite.YPos);
-		TextDrawInfo pos(textbuff, 32, tile_draw_xpos - 2, tile_draw_ypos + sprite_height + 4);
-		texts.PushBack(move(pos));
-
-		memset(textbuff, 0, 32);
-		snprintf(textbuff, 32, "Tile: %02Xh", sprite.Tile);
-		TextDrawInfo tile(textbuff, 32, tile_draw_xpos - 2, tile_draw_ypos + sprite_height + 7);
-		texts.PushBack(move(tile));
-
-		memset(textbuff, 0, 32);
-		snprintf(textbuff, 32, "HFlip: %d", sprite.HorizontalFlip);
-		TextDrawInfo hflip(textbuff, 32, tile_draw_xpos - 2, tile_draw_ypos + sprite_height + 10);
-		texts.PushBack(move(hflip));
-
-		memset(textbuff, 0, 32);
-		snprintf(textbuff, 32, "VFlip: %d", sprite.VerticalFlip);
-		TextDrawInfo vflip(textbuff, 32, tile_draw_xpos - 2, tile_draw_ypos + sprite_height + 13);
-		texts.PushBack(move(vflip));
 	}
-
-	target.DrawFrame(spriteViewBuffer);
-	for (int i = 0; i < texts.Count(); i++)
-	{
-		TextDrawInfo& text = texts[i];
-		target.DrawString(text.Text, GemColour::Black(), FONT_SIZE, text.X, text.Y);
-	}
-
-#undef DRAW_PX_MONOCHROME
-#undef DRAW_PX_COLOUR
 }
 
-void GPU::DrawPaletteViewBuffer(IDrawTarget& target)
+void GPU::RenderPalettesViz(ColourBuffer* out_buffers, ColourPalette::PaletteEntry* out_entries)
 {
-	int tile_draw_xpos;
-	int tile_draw_ypos;
-
-	static const GemColour bg_colour(133, 146, 158);
-	target.Fill(bg_colour);
-	char buff[32];
-
-	target.DrawString("BackGround", GemColour::Black(), 28, 10, 1);
-
-	for (int i = 0; i < 32; i++)
+	for (int idx = 0; idx < NumPaletteColours; idx++)
 	{
-		// 1px padding around the tile within the grid cell
-		tile_draw_xpos = (i % 4) * 10 + 1;
-		tile_draw_ypos = (i / 4) * 15 + 7;
-
-		ColourPalette::PaletteEntry& entry = bgColourPalette.Data[i];
+		ColourPalette::PaletteEntry& entry = idx < 32 ? bgColourPalette.Data[idx] : sprColourPalette.Data[idx - 32];
 		GemColour colour = entry.Colour;
 		colour.Correct();
 
-		target.DrawRect(8, 8, tile_draw_xpos, tile_draw_ypos, colour);
-		snprintf(buff, 32, "%04X", entry.AsWord());
-		target.DrawString(buff, GemColour::Black(), FONT_SIZE, tile_draw_xpos + 1, tile_draw_ypos + 9);
-	}
-
-	target.DrawRect(1, 123, 41, 1, GemColour::Purple());
-
-	target.DrawString("Sprites", GemColour::Black(), 28, 56, 1);
-
-	for (int i = 0; i < 32; i++)
-	{
-		tile_draw_xpos = (i % 4) * 10 + 44;
-		tile_draw_ypos = (i / 4) * 15 + 7;
-
-		ColourPalette::PaletteEntry& entry = sprColourPalette.Data[i];
-		GemColour colour = entry.Colour;
-		colour.Correct();
-
-		target.DrawRect(8, 8, tile_draw_xpos, tile_draw_ypos, colour);
-		snprintf(buff, 32, "%04X", entry.AsWord());
-		target.DrawString(buff, GemColour::Black(), FONT_SIZE, tile_draw_xpos + 1, tile_draw_ypos + 9);
+		out_buffers[idx].Fill(colour);
+		out_entries[idx] = entry;
 	}
 }
 

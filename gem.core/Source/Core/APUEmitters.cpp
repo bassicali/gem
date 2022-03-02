@@ -13,12 +13,12 @@ using namespace GemConstants;
 ///     SoundEmitter      ///
 /////////////////////////////
 SoundEmitter::SoundEmitter(int channel_number)
-	: emit(false),
-		amplitude(0),
-		gatedAmplitude(0),
-		sequencerTAcc(0),
-		sequencerStep(0),
-		channelNum(channel_number)
+	: emit(false)
+	, amplitude(0)
+	, gatedAmplitude(0)
+	, sequencerTAcc(0)
+	, sequencerStep(0)
+	, channelNum(channel_number)
 {
 }
 
@@ -52,7 +52,8 @@ void SoundEmitter::Tick256Hz()
 ///    Sinusoid Emitter   ///
 /////////////////////////////
 SinusoidEmitter::SinusoidEmitter()
-	: SoundEmitter(0), x(0.0f)
+	: SoundEmitter(0)
+	, x(0.0f)
 {
 }
 
@@ -177,8 +178,8 @@ void SquareWaveEmitter::Reset(uint16_t period_data, uint8_t freq_sweep_time, boo
 /////////////////////////////
 
 ProgrammableWaveEmitter::ProgrammableWaveEmitter(int channel_number, uint8_t wave_ram[])
-	: SoundEmitter(channel_number),
-		sampleIdx(0)
+	: SoundEmitter(channel_number)
+	, sampleIdx(0)
 {
 	waveRAM = wave_ram;
 }

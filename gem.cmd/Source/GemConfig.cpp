@@ -15,7 +15,7 @@
 
 using namespace std;
 namespace fs = std::filesystem;
-using namespace GemCmdUtil;
+using namespace GemUtil;
 
 regex re_header("^\\[(\\w+)\\]$", regex_constants::optimize | regex_constants::ECMAScript);
 regex re_setting("^(\\w+)=(.+)$", regex_constants::optimize | regex_constants::ECMAScript);
@@ -25,24 +25,26 @@ regex re_palette_hex("([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})h\\|([a-f0-9]{2})([
 // Singleton
 GemConfig& GemConfig::Get()
 {
-	static GemConfig* config = new GemConfig();
-	return *config;
+	static GemConfig config;
+	return config;
 }
 
 GemConfig::GemConfig()
-	: VSync(false),
-		NoSound(false),
-		ForceDMGMode(false),
-		PauseAfterOpen(false),
-		ResolutionScale(3.0f),
-		UpKey(SDLK_UP),
-		DownKey(SDLK_DOWN),
-		LeftKey(SDLK_LEFT),
-		RightKey(SDLK_RIGHT),
-		AKey(SDLK_a),
-		BKey(SDLK_s),
-		StartKey(SDLK_RETURN),
-		SelectKey(SDLK_RSHIFT)
+	: VSync(false)
+	, NoSound(false)
+	, ForceDMGMode(false)
+	, PauseAfterOpen(false)
+	, ResolutionScale(3.0f)
+	, UpKey(SDLK_UP)
+	, DownKey(SDLK_DOWN)
+	, LeftKey(SDLK_LEFT)
+	, RightKey(SDLK_RIGHT)
+	, AKey(SDLK_a)
+	, BKey(SDLK_s)
+	, StartKey(SDLK_RETURN)
+	, SelectKey(SDLK_RSHIFT)
+	, ShowDebugger(false)
+	, ShowConsole(false)
 {
 	Colour0 = GemPalette::Black();
 	Colour1 = GemPalette::DarkGrey();
@@ -74,6 +76,8 @@ void GemConfig::Save()
 		fout << "[gem]" << endl;
 		WRITE_SETTING(VSync);
 		WRITE_SETTING(ResolutionScale);
+		WRITE_SETTING(ShowDebugger);
+		WRITE_SETTING(ShowConsole);
 
 		WRITE_HEX_SETTING(UpKey);
 		WRITE_HEX_SETTING(DownKey);
@@ -127,6 +131,8 @@ void GemConfig::Load(std::istream& stream)
 			{
 				PARSE_BOOL(key, value, VSync)
 				PARSE_FLOAT(key, value, ResolutionScale)
+				PARSE_BOOL(key, value, ShowDebugger)
+				PARSE_BOOL(key, value, ShowConsole)
 
 				PARSE_INT(key, value, UpKey)
 				PARSE_INT(key, value, DownKey)

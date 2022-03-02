@@ -9,13 +9,14 @@
 using namespace std;
 
 APU::APU()
-	: buffer(8192),
-		audioQueue(nullptr),
-		emitter1(1),
-		emitter2(2),
-		emitter3(3, waveRAM),
-		emitter4(4),
-		sampleTAcc(0)
+	: buffer(8192)
+	, audioQueue(nullptr)
+	, emitter1(1)
+	, emitter2(2)
+	, emitter3(3, waveRAM)
+	, emitter4(4)
+	, sampleTAcc(0)
+	, mute(false)
 {
 	buffer.Allocate();
 
@@ -63,6 +64,7 @@ void APU::TickEmitters(int t_cycles)
 		return;
 
 	static float lmixed, rmixed, level;
+	uint8_t m = mute ? 0 : 1;
 
 	while (t_cycles--)
 	{
@@ -75,6 +77,21 @@ void APU::TickEmitters(int t_cycles)
 		{
 			controller.GetLeftLevelMask(left_levels);
 			controller.GetRightLevelMask(right_levels);
+
+			uint8_t e1 = emitter1.Sample();
+			uint8_t e2 = emitter2.Sample();
+			uint8_t e3 = emitter3.Sample();
+			uint8_t e4 = emitter4.Sample();
+
+			snapshot.L_Emitter1 = e1 * left_levels[0];
+			snapshot.L_Emitter2 = e2 * left_levels[1];
+			snapshot.L_Emitter3 = e3 * left_levels[2];
+			snapshot.L_Emitter4 = e4 * left_levels[3];
+
+			snapshot.R_Emitter1 = e1 * left_levels[0];
+			snapshot.R_Emitter2 = e2 * left_levels[1];
+			snapshot.R_Emitter3 = e3 * left_levels[2];
+			snapshot.R_Emitter4 = e4 * left_levels[3];
 
 			left_levels[0] *= chanMask[0];
 			left_levels[1] *= chanMask[1];
@@ -89,13 +106,20 @@ void APU::TickEmitters(int t_cycles)
 			lmixed = 0;
 			rmixed = 0;
 
-			MIXLR(0, emitter1.Sample());
-			MIXLR(1, emitter2.Sample());
-			MIXLR(2, emitter3.Sample());
-			MIXLR(3, emitter4.Sample());
+			MixSamples(lmixed, float(e1) / 15, float(left_levels[0]) / 7);
+			MixSamples(rmixed, float(e1) / 15, float(right_levels[0]) / 7);
 
-			buffer.PushBack(lmixed);
-			buffer.PushBack(rmixed);
+			MixSamples(lmixed, float(e2) / 15, float(left_levels[1]) / 7);
+			MixSamples(rmixed, float(e2) / 15, float(right_levels[1]) / 7);
+
+			MixSamples(lmixed, float(e3) / 15, float(left_levels[2]) / 7);
+			MixSamples(rmixed, float(e3) / 15, float(right_levels[2]) / 7);
+
+			MixSamples(lmixed, float(e4) / 15, float(left_levels[3]) / 7);
+			MixSamples(rmixed, float(e4) / 15, float(right_levels[3]) / 7);
+
+			buffer.PushBack(lmixed * m);
+			buffer.PushBack(rmixed * m);
 			sampleTAcc = 0;
 		}
 		else

@@ -18,6 +18,7 @@
 class IGemLog
 {
 	public:
+		virtual ~IGemLog() {}
 		virtual void Verbose(const char* Message...) = 0;
 		virtual void Debug(const char* Message...) = 0;
 		virtual void Info(const char* Message...) = 0;

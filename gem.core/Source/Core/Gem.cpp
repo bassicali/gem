@@ -7,18 +7,17 @@
 
 using namespace std;
 
-Gem::Gem() : 
-	bCGB(true),
-	gpu(new GPU()),
-	apu(new APU()),
-	mmu(new MMU()),
-	joypad(new Joypad()),
-	traceFile(nullptr),
-	tickCount(0),
-	frameCount(0),
-	dasmEnabled(false),
-	tickAPU(true),
-	tracing(false)
+Gem::Gem()
+	: bCGB(true)
+	, gpu(new GPU())
+	, apu(new APU())
+	, mmu(new MMU())
+	, joypad(new Joypad())
+	, traceFile(nullptr)
+	, tickCount(0)
+	, frameCount(0)
+	, tickAPU(true)
+	, tracing(false)
 {
 	cpu.SetMMU(mmu);
 	mmu->SetGPU(gpu);
@@ -69,14 +68,6 @@ void Gem::LoadRom(const char* file)
 	}
 
 	gpu->SetCartridge(cart);
-}
-
-void Gem::EnableDisassembly()
-{
-	using namespace std::placeholders;
-
-	dasm.DisassembleFromMMU(mmu);
-	dasmEnabled = true;
 }
 
 void Gem::ToggleSound(bool enabled)
@@ -163,21 +154,22 @@ inline void Gem::HandleTracing(uint16_t pc, uint16_t inst)
 	if (!tracing)
 		return;
 
-	const char* mnemonic;
+	OpCodeInfo* inst_info = nullptr;
+
 	if (inst != 0xCB)
 	{
-		mnemonic = Z80::InstructionNameLookup[static_cast<Instruction>(inst)];
+		inst_info = &OpCodeIndex::Get()[inst];
 	}
 	else
 	{
 		uint8_t extended = mmu->ReadByte(pc + 1);
-		uint16_t inst = 0xCB00 | extended;
-		mnemonic = Z80::InstructionNameLookup[static_cast<Instruction>(inst)];
+		inst = 0xCB00 | extended;
+		inst_info = &OpCodeIndex::Get()[inst];
 	}
 
 	*traceFile << std::hex << std::uppercase
-		<< "PC:" << setw(4) << setfill('0') << cpu.GetPC() << setfill(' ') << " (" << setw(10) << mnemonic << ")"
-		<< " SP:" << setw(4) << setfill('0') << cpu.GetSP() << "(" << setw(10) << mnemonic << ")"
+		<< "PC:" << setw(4) << setfill('0') << cpu.GetPC() << setfill(' ') << " (" << setw(10) << inst_info->Mnemonic << ")"
+		<< " SP:" << setw(4) << setfill('0') << cpu.GetSP() << "(" << setw(10) << inst_info->Mnemonic << ")"
 		<< " A:" << setw(2) << setfill('0') << unsigned(cpu.GetRegisterA())
 		<< " B:" << setw(2) << setfill('0') << unsigned(cpu.GetRegisterB())
 		<< " C:" << setw(2) << setfill('0') << unsigned(cpu.GetRegisterC())

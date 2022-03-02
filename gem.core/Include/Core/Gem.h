@@ -9,7 +9,6 @@
 #include "Core/GPU.h"
 #include "Core/APU.h"
 #include "Core/Joypad.h"
-#include "Disassembler.h"
 
 class Gem
 {
@@ -19,19 +18,17 @@ class Gem
 		void Reset(bool bCGB);
 		void Shutdown();
 		void LoadRom(const char* file);
-		void EnableDisassembly();
 		bool Tick();
 		void TickUntilVBlank();
 		const uint64_t GetTickCount() const { return tickCount; }
+		const uint64_t GetFrameCount() const { return frameCount; }
 		std::shared_ptr<CartridgeReader> GetCartridgeReader() { return cart; }
 		bool IsROMLoaded() const { return cart.get() != nullptr; }
-		void TimingTest();
 		Z80& GetCPU() { return cpu; }
 		std::shared_ptr<GPU> GetGPU() { return gpu; }
 		std::shared_ptr<APU> GetAPU() { return apu; }
 		std::shared_ptr<MMU> GetMMU() { return mmu; }
 		std::shared_ptr<Joypad> GetJoypad() { return joypad; }
-		Disassembler& GetDisassembler() { return dasm; }
 		void ToggleSound(bool enabled);
 		std::string StartTrace();
 		void EndTrace();
@@ -51,8 +48,6 @@ class Gem
 
 		bool tickAPU;
 
-		Disassembler dasm;
-		bool dasmEnabled;
 		std::ofstream* traceFile;
 		bool tracing;
 };

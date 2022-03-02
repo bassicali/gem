@@ -169,8 +169,8 @@ public:
 	const uint8_t LeftLevel() const { return SO2Level; }
 	const uint8_t RightLevel() const { return SO1Level; }
 
-	void GetLeftLevelMask(uint8_t* arr);
-	void GetRightLevelMask(uint8_t* arr);
+	void GetLeftLevelMask(uint8_t* arr) const;
+	void GetRightLevelMask(uint8_t* arr) const;
 
 	const bool IsSoundOn() const { return MasterEnable; }
 	void Chan1SetSoundOn(bool on) { Channel1Enable = on; }

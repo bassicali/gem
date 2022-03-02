@@ -13,6 +13,7 @@
 
 #define DECLARE_COLOUR_STANDALONE(Name,R,G,B) static const GemColour& Name() { static GemColour* c = new GemColour((R),(G),(B)); return *c; }
 #define DECLARE_COLOUR(Name,R,G,B) static const GemColour& Name() { if (!_##Name) { _##Name = new GemColour((R),(G),(B)); } return *_##Name; }
+#define DECLARE_PIXEL(Name,R,G,B,A) static const Pixel& Name() { static Pixel* px = new Pixel(R,G,B,A); return *px; }
 
 enum class CorrectionMode
 {
@@ -76,6 +77,7 @@ private:
 
 struct ColourBuffer : public DArray<GemColour>
 {
+	ColourBuffer();
 	ColourBuffer(int w, int h);
 	void CorrectPixel(int x, int y);
 	void SetPixel(int x, int y, const GemColour& Colour);

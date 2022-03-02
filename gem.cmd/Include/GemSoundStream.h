@@ -21,6 +21,7 @@ public:
 	virtual int GetQueuedSampleCount() override;
 	virtual void PushAudioData(const DArray<float>& buffer) override;
 	void Shutdown();
+	const bool IsInitialized() const { return initialized; }
 	const bool IsPlaying() const { return playing; }
 private:
 	SDL_AudioDeviceID device;
