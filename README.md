@@ -10,7 +10,9 @@
 - A command console with some commands for debugging the emulation. See table below.
 - Easy to read code. Highly modularized design and liberal usage of comments makes it a good reference for writing your own emulator.
 
+<img src="images/demo.gif"></img>
 
+<img src="images/loz.png"></img>
 
 ## Console Commands
 *Note: Any numeric argument can be suffixed with 'h' to indicate a hex number (e.g. 204 -> CCh)*

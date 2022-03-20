@@ -844,21 +844,21 @@ void GPU::RenderTilesViz(ColourBuffer* out_buffers, CgbTileAttribute* out_attrs)
 			if (bCGB)
 			{
 				viz_buffer.SetPixel(0, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[0]));
-				viz_buffer.CorrectPixel(0, r);
+				viz_buffer.CorrectPixel(0, r, GetColourCorrectionMode());
 				viz_buffer.SetPixel(1, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[1]));
-				viz_buffer.CorrectPixel(1, r);
+				viz_buffer.CorrectPixel(1, r, GetColourCorrectionMode());
 				viz_buffer.SetPixel(2, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[2]));
-				viz_buffer.CorrectPixel(2, r);
+				viz_buffer.CorrectPixel(2, r, GetColourCorrectionMode());
 				viz_buffer.SetPixel(3, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[3]));
-				viz_buffer.CorrectPixel(3, r);
+				viz_buffer.CorrectPixel(3, r, GetColourCorrectionMode());
 				viz_buffer.SetPixel(4, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[4]));
-				viz_buffer.CorrectPixel(4, r);
+				viz_buffer.CorrectPixel(4, r, GetColourCorrectionMode());
 				viz_buffer.SetPixel(5, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[5]));
-				viz_buffer.CorrectPixel(5, r);
+				viz_buffer.CorrectPixel(5, r, GetColourCorrectionMode());
 				viz_buffer.SetPixel(6, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[6]));
-				viz_buffer.CorrectPixel(6, r);
+				viz_buffer.CorrectPixel(6, r, GetColourCorrectionMode());
 				viz_buffer.SetPixel(7, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[7]));
-				viz_buffer.CorrectPixel(7, r);
+				viz_buffer.CorrectPixel(7, r, GetColourCorrectionMode());
 			}
 			else
 			{
@@ -949,21 +949,21 @@ void GPU::RenderSpritesViz(ColourBuffer* out_buffers, SpriteData* out_sprites)
 				if (bCGB)
 				{
 					curr_tile[8 * ln + 0] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[0]);
-					curr_tile[8 * ln + 0].Correct();
+					curr_tile[8 * ln + 0].Correct(GetColourCorrectionMode(), 1.0f);
 					curr_tile[8 * ln + 1] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[1]);
-					curr_tile[8 * ln + 1].Correct();
+					curr_tile[8 * ln + 1].Correct(GetColourCorrectionMode(), 1.0f);
 					curr_tile[8 * ln + 2] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[2]);
-					curr_tile[8 * ln + 2].Correct();
+					curr_tile[8 * ln + 2].Correct(GetColourCorrectionMode(), 1.0f);
 					curr_tile[8 * ln + 3] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[3]);
-					curr_tile[8 * ln + 3].Correct();
+					curr_tile[8 * ln + 3].Correct(GetColourCorrectionMode(), 1.0f);
 					curr_tile[8 * ln + 4] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[4]);
-					curr_tile[8 * ln + 4].Correct();
+					curr_tile[8 * ln + 4].Correct(GetColourCorrectionMode(), 1.0f);
 					curr_tile[8 * ln + 5] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[5]);
-					curr_tile[8 * ln + 5].Correct();
+					curr_tile[8 * ln + 5].Correct(GetColourCorrectionMode(), 1.0f);
 					curr_tile[8 * ln + 6] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[6]);
-					curr_tile[8 * ln + 6].Correct();
+					curr_tile[8 * ln + 6].Correct(GetColourCorrectionMode(), 1.0f);
 					curr_tile[8 * ln + 7] = sprColourPalette.GetColour(sprite.CGBPalette, pixels[7]);
-					curr_tile[8 * ln + 7].Correct();
+					curr_tile[8 * ln + 7].Correct(GetColourCorrectionMode(), 1.0f);
 				}
 				else
 				{
@@ -987,7 +987,7 @@ void GPU::RenderPalettesViz(ColourBuffer* out_buffers, ColourPalette::PaletteEnt
 	{
 		ColourPalette::PaletteEntry& entry = idx < 32 ? bgColourPalette.Data[idx] : sprColourPalette.Data[idx - 32];
 		GemColour colour = entry.Colour;
-		colour.Correct();
+		colour.Correct(GetColourCorrectionMode(), 1.0f);
 
 		out_buffers[idx].Fill(colour);
 		out_entries[idx] = entry;

@@ -162,16 +162,17 @@ bool GemApp::InitCore()
 
 		shared_ptr<CartridgeReader> rom_reader = core.GetCartridgeReader();
 
-		if (GemConfig::Get().ShowConsole)
-		{
-			GemConsole::Get().PrintLn("ROM file loaded");
-			GemConsole::Get().PrintLn("Title: %s", rom_reader->Properties().Title);
-			GemConsole::Get().PrintLn("ROM Size: %d KB", rom_reader->Properties().ROMSize);
-			GemConsole::Get().PrintLn("RAM Size: %d KB", rom_reader->Properties().RAMSize);
-			GemConsole::Get().PrintLn("Cartridge: %s", CartridgeReader::ROMTypeString(rom_reader->Properties().Type).c_str());
-			GemConsole::Get().PrintLn("CGB: %s", CartridgeReader::CGBSupportString(rom_reader->Properties().CGBCompatability).c_str());
-			GemConsole::Get().PrintLn("");
-		}
+		GemConsole::Get().PrintLn("ROM file loaded");
+		GemConsole::Get().PrintLn("Title: %s", rom_reader->Properties().Title);
+		GemConsole::Get().PrintLn("ROM Size: %d KB", rom_reader->Properties().ROMSize);
+		GemConsole::Get().PrintLn("RAM Size: %d KB", rom_reader->Properties().RAMSize);
+		GemConsole::Get().PrintLn("Cartridge: %s", CartridgeReader::ROMTypeString(rom_reader->Properties().Type).c_str());
+		GemConsole::Get().PrintLn("CGB: %s", CartridgeReader::CGBSupportString(rom_reader->Properties().CGBCompatability).c_str());
+		GemConsole::Get().PrintLn("");
+	}
+	else if (core.IsROMLoaded())
+	{
+		core.Reset(ShouldEmulateCGBMode());
 	}
 
 	GMsgPad.EmulationPaused.store(GemConfig::Get().PauseAfterOpen || GMsgPad.ROMPath.empty());
@@ -222,12 +223,11 @@ bool GemApp::ShouldEmulateCGBMode()
 
 void GemApp::WindowLoop()
 {
-	auto& config = GemConfig::Get();
-	mainWindow = new RenderWindow("", GPU::LCDWidth, GPU::LCDHeight, &sound, config.VSync, config.ResolutionScale);
+	mainWindow = new RenderWindow("", GPU::LCDWidth, GPU::LCDHeight, &sound, GemConfig::Get().VSync, GemConfig::Get().ResolutionScale);
 
 	SetWindowTitles();
 
-	while (mainWindow->IsOpen())
+	while (mainWindow->IsOpen() && !GMsgPad.Shutdown)
 	{
 		ProcessEvents();
 		
@@ -259,12 +259,9 @@ bool GemApp::LoopWork()
 
 	if (GMsgPad.Reset)
 	{
-		if (!GMsgPad.ROMPath.empty())
+		if (InitCore())
 		{
-			if (InitCore())
-			{
-				SetWindowTitles();
-			}
+			SetWindowTitles();
 		}
 		
 		GMsgPad.ROMPath.clear();
@@ -308,9 +305,6 @@ bool GemApp::LoopWork()
 	{
 		debugger.HandleDisassembly(emu_paused);
 	}
-
-	if (emu_paused)
-		this_thread::sleep_for(30ms);
 
 	return swap;
 }
@@ -417,6 +411,11 @@ bool GemApp::DebuggerTick(bool emu_paused)
 	{
 		GMsgPad.EmulationPaused.store(true);
 	}
+
+	// While the emulation is technically paused, we still want to refresh some values in the debugger window after 
+	// a breakpoint is hit or the 'step' button is clicked.
+	if (hit || stepping_finished)
+		debugger.RefreshModel = true;
 
 	core.GetMMU()->EvalBreakpoints(false);
 

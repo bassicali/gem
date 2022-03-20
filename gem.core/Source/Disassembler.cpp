@@ -3,15 +3,30 @@
 #include <cassert>
 
 #include "Disassembler.h"
-#include "Util.h"
 #include "Core/Instruction.h"
 #include "Core/Z80.h"
 #include "Core/MMU.h"
 
 using namespace std;
-using namespace GemUtil;
 
 DisassemblyEntry DisassemblyEntry::Unknown = DisassemblyEntry();
+
+
+bool StringReplace(string& src, const string& find, const string& replace)
+{
+	int pos = src.find(find);
+	if (pos == string::npos)
+		return false;
+
+	src.replace(pos, find.length(), replace);
+	return true;
+}
+
+string StringLower(string str)
+{
+	transform(str.begin(), str.end(), str.begin(), ::tolower);
+	return str;
+}
 
 string DisassemblyEntry::GetMnemonic() const
 {

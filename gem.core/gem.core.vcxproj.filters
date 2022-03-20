@@ -87,9 +87,6 @@
     <ClInclude Include="Include\IAudioQueue.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="Include\Util.h">
-      <Filter>Include</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Core\Gem.cpp">
@@ -148,9 +145,6 @@
     </ClCompile>
     <ClCompile Include="Source\Core\Instruction.cpp">
       <Filter>Source\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Util.cpp">
-      <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

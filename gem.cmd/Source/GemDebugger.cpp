@@ -37,6 +37,7 @@ GemDebugger::GemDebugger()
 	, initialized(false)
 	, hidden(false)
 	, running(false)
+	, RefreshModel(false)
 {
 }
 
@@ -231,9 +232,10 @@ void GemDebugger::LayoutWidgets()
 	update_lcd_registers = false;
 
 	// While paused, don't refresh the register strings so the user can edit them
-	bool refresh_registers = !is_paused;
+	bool refresh_registers = !is_paused || RefreshModel;
 	model.SetValuesFromCore(*core, refresh_registers, true, refresh_registers);
-	
+	RefreshModel = false;
+
 	ImGui::PushFont(UIFont);
 	if (ImGui::Begin("Debugger_MainArea", nullptr, flags))
 	{
@@ -300,17 +302,14 @@ void GemDebugger::LayoutWidgets()
 									}
 									else
 									{
-										int i = -1;
-										for (const auto& bp : breakpoints)
+										for (int i = 0; i < breakpoints.size(); i++)
 										{
-											if (bp.Addr == entry.Address)
+											if (breakpoints[i].Addr == entry.Address)
+											{
+												breakpoints.erase(breakpoints.begin() + i);
 												break;
-											else
-												i += (i == -1) ? 2 : 1;
+											}
 										}
-
-										if (i != -1)
-											breakpoints.erase(breakpoints.begin() + i);
 									}
 								}
 							}
@@ -721,6 +720,24 @@ void GemDebugger::LayoutWidgets()
 		}
 
 		ImGui::SameLine();
+		ImVec2 pos = ImGui::GetCursorScreenPos();
+		ImGui::SetCursorScreenPos(ImVec2(pos.x + 20, pos.y));
+		if (ImGui::Button("Open..."))
+		{
+			string path = GemUtil::PromptForROM();
+			if (path.length() > 0)
+			{
+				GMsgPad.ROMPath = path;
+				GMsgPad.Reset = true;
+			}
+		}
+		
+		ImGui::SameLine();
+		if (ImGui::Button("Reset"))
+		{
+			GMsgPad.Reset = true;
+		}
+
 		ImGui::Text("FPS: %.1fHz", ImGui::GetIO().Framerate);
 
 		ImGui::End();
@@ -1070,12 +1087,6 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 {
 	namespace fs = std::filesystem;
 
-	bool stop = false;
-	bool defer_prompt = false;
-
-	static char path[_MAX_PATH];
-	static OPENFILENAMEA opts;
-
 	switch (cmd.Type)
 	{
 		case CommandType::OpenROM:
@@ -1091,28 +1102,15 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 				else
 				{
 					GMsgPad.ROMPath = fs::absolute(load_path).string();
-					GMsgPad.Changed = true;
 					GMsgPad.Reset = true;
 				}
 			}
 			else
 			{
-				memset(&opts, 0, sizeof(OPENFILENAMEA));
-				opts.lStructSize = sizeof(OPENFILENAMEA);
-				opts.hwndOwner = NULL;
-				opts.lpstrFile = &path[0];
-				opts.nMaxFile = sizeof(char) * _MAX_PATH;
-				opts.lpstrFilter = "Game Boy ROMs (*.gb;*.gbc)\0*.gb;*.gbc\0\0";
-				opts.nFilterIndex = 1;
-				opts.lpstrFileTitle = NULL;
-				opts.nMaxFileTitle = 0;
-				opts.lpstrInitialDir = NULL;
-
-				opts.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOVALIDATE;
-				if (GetOpenFileNameA(&opts))
+				string path = GemUtil::PromptForROM();
+				if (path.length() > 0)
 				{
-					GMsgPad.ROMPath = string(path);
-					GMsgPad.Changed = true;
+					GMsgPad.ROMPath = path;
 					GMsgPad.Reset = true;
 				}
 			}
@@ -1217,16 +1215,6 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 			core->GetGPU()->SetBrightness(cmd.FArg0);
 			break;
 		}
-		case CommandType::SetFrameRateLimit:
-		{
-			GMsgPad.FrameRateLimit = cmd.Arg0;
-			break;
-		}
-		case CommandType::ShowFPS:
-		{
-			GMsgPad.ShowFPS = (bool)cmd.Arg0;
-			break;
-		}
 		case CommandType::Reset:
 		{
 			GMsgPad.Reset = true;
@@ -1234,8 +1222,6 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 		}
 		case CommandType::Exit:
 		{
-			stop = true;
-
 			// End the console loop and signal the window loop to also stop
 			GMsgPad.Shutdown = true;
 			break;
@@ -1355,8 +1341,6 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 				//	GMsgPad.StepParams.UntilVBlank = true;
 				//else
 				GMsgPad.StepParams.NSteps = cmd.Type == CommandType::Step ? 1 : cmd.Arg0;
-
-				GMsgPad.Changed = true;
 			}
 			else
 			{

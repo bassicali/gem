@@ -91,6 +91,8 @@ public:
 
 	std::vector<Breakpoint>& Breakpoints() { return breakpoints; }
 
+	bool RefreshModel;
+
 private:
 
 	void LayoutWidgets();

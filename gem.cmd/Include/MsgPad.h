@@ -58,6 +58,8 @@ struct DisassemblyMsgPad
     int CurrentIndex = 0;
 };
 
+
+// Used by GemApp and GemDebugger to pass data between each other without a lot of plumbing
 struct MsgPad
 {
     DisassemblyMsgPad Disassemble;
@@ -65,20 +67,9 @@ struct MsgPad
     std::atomic_bool EmulationPaused;
     bool Reset;
     bool Shutdown;
-    bool ShowSpritesWindow;
-    bool ShowPalettesWindow;
-    bool ShowTilesWindow;
-    int FrameRateLimit;
-    bool ShowFPS;
     std::string ROMPath;
-    bool EmulationLoopFinished;
     std::atomic_int DasmRequest;
-    std::vector<DisassemblyEntry> Disassembly;
     std::vector<Breakpoint> Breakpoints;
-    std::optional<Breakpoint> HitBreakpoint;
-    std::optional<RWBreakpoint> HitRWBreakpoint;
-    bool Changed;
-    bool UpdateDisassemblyListBox;
 
     StepType StepType; // 'Unknown' is the 'dont care' value
     StepCommandParams StepParams;

@@ -125,6 +125,7 @@
     <ClCompile Include="Source\OpenGL\PixelUploader.cpp" />
     <ClCompile Include="Source\RenderWindow.cpp" />
     <ClCompile Include="Source\Main.cpp" />
+    <ClCompile Include="Source\Util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\gem.core\gem.core.vcxproj">
@@ -152,6 +153,7 @@
     <ClInclude Include="Include\OpenGL\Common.h" />
     <ClInclude Include="Include\OpenGL\PixelUploader.h" />
     <ClInclude Include="Include\RenderWindow.h" />
+    <ClInclude Include="Include\Util.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

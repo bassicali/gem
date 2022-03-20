@@ -90,6 +90,9 @@
     <ClCompile Include="Source\GemConsole.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Util.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Include\RenderWindow.h">
@@ -151,6 +154,9 @@
       <Filter>Include\OpenGL</Filter>
     </ClInclude>
     <ClInclude Include="Include\GemConsole.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\Util.h">
       <Filter>Include</Filter>
     </ClInclude>
   </ItemGroup>

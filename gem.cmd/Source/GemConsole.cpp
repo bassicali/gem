@@ -418,8 +418,6 @@ void GemConsole::DefineCommands()
     ADD_COMMAND("unmute", CommandType::APUUnmute);
     ADD_COMMAND_INT_INT("chan", CommandType::APUChannelMask);
 
-    ADD_COMMAND_INT("fr", CommandType::SetFrameRateLimit);
-    ADD_COMMAND_INT("fps", CommandType::ShowFPS);
     ADD_COMMAND_INT("ccm", CommandType::ColourCorrectionMode);
     ADD_COMMAND_INT("brightness", CommandType::Brightness);
 

@@ -1,11 +1,14 @@
 
-#define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS 
+#define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
+
 #include <chrono>
 #include <algorithm>
 #include <locale>
 #include <codecvt>
 #include <string>
 #include <cstdarg>
+
+#include <windows.h>
 
 #include "Util.h"
 
@@ -118,6 +121,31 @@ long GemUtil::UnixTimestamp()
 {
 	using namespace chrono;
 	return duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+}
+
+std::string GemUtil::PromptForROM()
+{
+	static OPENFILENAMEA opts;
+	static char path[_MAX_PATH];
+
+	memset(&opts, 0, sizeof(OPENFILENAMEA));
+	opts.lStructSize = sizeof(OPENFILENAMEA);
+	opts.hwndOwner = NULL;
+	opts.lpstrFile = &path[0];
+	opts.nMaxFile = sizeof(char) * _MAX_PATH;
+	opts.lpstrFilter = "Game Boy ROMs (*.gb;*.gbc)\0*.gb;*.gbc\0\0";
+	opts.nFilterIndex = 1;
+	opts.lpstrFileTitle = NULL;
+	opts.nMaxFileTitle = 0;
+	opts.lpstrInitialDir = NULL;
+
+	opts.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOVALIDATE;
+	if (GetOpenFileNameA(&opts))
+	{
+		return string(path);
+	}
+
+	return string();
 }
 
 wstring GemUtil::StringAToW(const string& str)

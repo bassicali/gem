@@ -35,7 +35,6 @@
     <ClInclude Include="Include\IMappedComponent.h" />
     <ClInclude Include="Include\Logging.h" />
     <ClInclude Include="Include\Colour.h" />
-    <ClInclude Include="Include\Util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Core\APU.cpp" />
@@ -57,7 +56,6 @@
     <ClCompile Include="Source\Disassembler.cpp" />
     <ClCompile Include="Source\Logging.cpp" />
     <ClCompile Include="Source\Colour.cpp" />
-    <ClCompile Include="Source\Util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Include\OpcodeTable.inl" />

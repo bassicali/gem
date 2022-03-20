@@ -23,4 +23,5 @@ namespace GemUtil
 	std::wstring StringAToW(const std::string& str);
 	int ParseNumericString(const std::string& src);
 	long UnixTimestamp();
+	std::string PromptForROM();
 }
