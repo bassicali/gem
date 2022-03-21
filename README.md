@@ -67,13 +67,6 @@ A config file named `gem.ini` is used to persist some user settings. It's create
 | Start | Enter |
 | Select | Left shift |
 
-## Screenshots
-<img width="50%" height="50%" src="images/wl3-screen.png">
-<img width="50%" height="50%" src="images/tetris-screen.png">
-<img width="50%" height="50%" src="images/sprites-screen.png">
-<img width="50%" height="50%" src="images/palettes-screen.png">
-<img width="50%" height="50%" src="images/memdump-screen.png">
-
 ## Code Layout
 - **gem.core**: All the hardware emulation logic is in this library. It has no dependencies and is written in portable C++.
 - **gem.gui**: A UI front-end and debugger for the emultation core. The main window uses just SDL2 while the debugger is written with ImGui.
