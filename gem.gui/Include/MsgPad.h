@@ -16,21 +16,6 @@ union StepCommandParams
     bool Over;
 };
 
-struct Breakpoint
-{
-    uint16_t Addr;
-    bool Enabled;
-
-    Breakpoint() : Addr(0), Enabled(false)
-    {
-    }
-
-    Breakpoint(uint16_t addr) : Addr(addr), Enabled(true)
-    {
-    }
-};
-
-
 enum class StepType
 {
     None,

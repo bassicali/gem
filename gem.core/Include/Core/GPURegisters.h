@@ -9,28 +9,28 @@ enum class LCDMode
 {
 	HBlank = 0x0,
 	VBlank = 0x1, // 
-	ReadingOam = 0x2, // LCD controller reading from OAM
-	ReadingVRam = 0x3, // LCD controller reading from OAM and VRAM and transferring to LCD driver
+	ReadingOAM = 0x2, // LCD controller reading from OAM
+	ReadingVRAM = 0x3, // LCD controller reading from OAM and VRAM and transferring to LCD driver
 };
 
 // 0xFF40
 struct LCDControlRegister
 {	
 	LCDControlRegister();
-	int GetTileDataVRamIndex() const;
-	int GetBgTileMapVRamIndex() const;
-	int GetWindowTileMapVRamIndex() const;
+	int GetTileDataVRAMIndex() const;
+	int GetBGTileMapVRAMIndex() const;
+	int GetWindowTileMapVRAMIndex() const;
 	void WriteByte(uint8_t value);
 	uint8_t ReadByte() const;
 
 	bool Enabled;				// Bit 7
 	int WindowTileMapSelect;	// Bit 6
 	bool WindowEnabled;			// Bit 5
-	int BgWindowTileDataSelect;	// Bit 4
-	int BgTileMapSelect;		// Bit 3
+	int BGWindowTileDataSelect;	// Bit 4
+	int BGTileMapSelect;		// Bit 3
 	int	SpriteSize;				// Bit 2
 	bool SpriteEnabled;			// Bit 1
-	bool BgDisplay;				// Bit 0
+	bool BGDisplay;				// Bit 0
 	uint8_t RegisterByte;
 };
 
@@ -38,11 +38,11 @@ struct LCDControlRegister
 struct LCDStatusRegister
 {
 	// Initial state = 0x01
-	bool LycLyCoincidenceIntEnabled; // Bit 6
-	bool OamIntEnabled; // Bit 5
+	bool LYCLYCoincidenceIntEnabled; // Bit 6
+	bool OAMIntEnabled; // Bit 5
 	bool VBlankIntEnabled; // Bit 4
 	bool HBlankIntEnabled; // Bit 3
-	bool LycLyCoincidence; // Bit 2
+	bool LYCLYCoincidence; // Bit 2
 	LCDMode Mode; // Bit 1-0
 	uint8_t RegisterByte;
 
@@ -113,16 +113,16 @@ struct ColourPalette
 	PaletteEntry Data[32]; // Every 4 entries is 1 palette
 };
 
-struct CgbTileAttribute
+struct CGBTileAttribute
 {
 	uint8_t Palette              = 0;
-	uint8_t VRamBank             = 0;
+	uint8_t VRAMBank             = 0;
 	bool HorizontalFlip      = false;
 	bool VerticalFlip        = false;
 	bool PriorityOverSprites = false;
 
-	CgbTileAttribute();
-	CgbTileAttribute(uint8_t value);
+	CGBTileAttribute();
+	CGBTileAttribute(uint8_t value);
 	void DecodeFromByte(uint8_t value);
 };
 
@@ -131,11 +131,11 @@ struct SpriteData
 	short YPos; // Byte 0
 	short XPos; // Byte 1
 	uint8_t Tile; // Byte 2
-	bool BehindBg; // Bit 7
+	bool BehindBG; // Bit 7
 	bool VerticalFlip; // Bit6
 	bool HorizontalFlip; // Bit5
 	int DMGPalette; // Bit4
-	int VRamBank; // Bit3
+	int VRAMBank; // Bit3
 	int CGBPalette; // Bit2-0
 
 	bool bCGB;
@@ -148,9 +148,9 @@ struct SpriteData
 	void DecodeFromOAM(uint16_t addr, uint8_t byte0, uint8_t byte1, uint8_t byte2, uint8_t byte3);
 };
 
-struct DmaTransferRegisters
+struct DMATransferRegisters
 {
-	DmaTransferRegisters();
+	DMATransferRegisters();
 
 	uint8_t ReadByte(uint16_t addr) const;
 	void WriteByte(uint16_t addr, uint8_t value); // Returns true if a transfer should be initiated

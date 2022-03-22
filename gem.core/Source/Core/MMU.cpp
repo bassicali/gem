@@ -8,8 +8,10 @@
 using namespace std;
 
 MMU::MMU() 
-	: interrupts(new InterruptController()),
-		evalBreakpoints(false)
+	: interrupts(new InterruptController())
+	, evalBreakpoints(false)
+	, readBreakpoints(nullptr)
+	, writeBreakpoints(nullptr)
 {
 	timer.SetInterruptController(interrupts);
 	memset(hram, 0, 127);
@@ -282,20 +284,16 @@ uint8_t MMU::ReadByte(uint16_t addr)
 			break;
 	}
 
-	if (evalBreakpoints)
+	if (evalBreakpoints && readBreakpoints)
 	{
-		for (auto& bp : readBreakpoints)
+		for (auto& bp : *readBreakpoints)
 		{
-			if (addr == bp.Addr)
+			if (addr == bp.Address)
 			{
 				if (bp.CheckValue)
 					bp.Hit = bp.ValueIsMask ? ((ret & bp.Value) != 0) : (ret == bp.Value);
 				else
 					bp.Hit = true;
-			}
-			else
-			{
-				bp.Hit = false;
 			}
 		}
 	}
@@ -475,20 +473,16 @@ void MMU::WriteByte(uint16_t addr, uint8_t value)
 
 	LOG_VERBOSE("[MMU] %s[%Xh] = %d", device_name.c_str(), addr, value);
 
-	if (evalBreakpoints)
+	if (evalBreakpoints && writeBreakpoints)
 	{
-		for (auto& bp : writeBreakpoints)
+		for (auto& bp : *writeBreakpoints)
 		{
-			if (addr == bp.Addr)
+			if (addr == bp.Address)
 			{
 				if (bp.CheckValue)
 					bp.Hit = bp.ValueIsMask ? ((value & bp.Value) != 0) : (value == bp.Value);
 				else
 					bp.Hit = true;
-			}
-			else
-			{
-				bp.Hit = false;
 			}
 		}
 	}

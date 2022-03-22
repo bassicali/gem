@@ -39,7 +39,7 @@ RenderWindow::RenderWindow(const char* title, int buff_width, int buff_height, I
 	if (window == nullptr)
 		throw exception("Failed to create window");
 
-	SDL_SetWindowResizable(window, SDL_TRUE);
+	SDL_SetWindowResizable(window, SDL_FALSE);
 	windowId = SDL_GetWindowID(window);
 
 	Uint32 flags = SDL_RENDERER_ACCELERATED;

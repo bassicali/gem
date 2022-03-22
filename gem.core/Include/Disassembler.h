@@ -101,3 +101,57 @@ public:
 private:
 	static bool FindAnchor(uint16_t curr_pc, MMU& memory, int max_look_behind, uint16_t& out_anchor);
 };
+
+
+enum class BreakpointType : uint8_t
+{
+	None = 0,
+	Read = 1,
+	Write = 2
+};
+
+struct Breakpoint
+{
+	BreakpointType Type;
+	uint16_t Address;
+	uint8_t Value;
+	bool CheckValue;
+	bool ValueIsMask;
+	bool Hit;
+	bool Enabled;
+	std::string Name;
+
+
+	Breakpoint()
+		: Type(BreakpointType::None)
+		, Address(0)
+		, Value(0)
+		, CheckValue(false)
+		, ValueIsMask(false)
+		, Hit(false)
+		, Enabled(false)
+	{
+	}
+
+	Breakpoint(uint16_t addr)
+		: Type(BreakpointType::None)
+		, Address(addr)
+		, Value(0)
+		, CheckValue(false)
+		, ValueIsMask(false)
+		, Hit(false)
+		, Enabled(true)
+	{
+	}
+
+	Breakpoint(BreakpointType type, uint16_t addr, uint8_t val, bool checkval, bool is_mask)
+		: Type(type)
+		, Address(addr)
+		, Value(val)
+		, CheckValue(checkval)
+		, ValueIsMask(is_mask)
+		, Hit(false)
+		, Enabled(true)
+	{
+	}
+};

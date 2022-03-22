@@ -1,0 +1,171 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{D2F84DC4-6F02-489C-9BD0-D2B4E7602AFA}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>gemcmd</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <SccProjectName>SAK</SccProjectName>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccProvider>SAK</SccProvider>
+    <ProjectName>gem.gui</ProjectName>
+  </PropertyGroup>
+  <!-- Import our custom Targets file -->
+  <Import Project="Gem.Gui.Targets" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\gem.gui\</OutDir>
+    <IntDir>$(SolutionDir)bin\Intermediate\$(Configuration)-$(Platform)\gem.gui\</IntDir>
+    <IncludePath>$(ProjectDir)Include;$(ProjectDir)..\thirdparty\imgui\Include;$(ProjectDir)..\gem.core\Include;$(ProjectDir)..\thirdparty\opengl\include;$(ProjectDir)..\thirdparty\SDL2-2.0.12\include;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\include;$(ProjectDir)..\thirdparty\IconFontCppHeaders;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)..\thirdparty\SFML-2.4.1\lib;$(ProjectDir)..\thirdparty\SDL2-2.0.12\lib\x64;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\lib\x64;$(LibraryPath)</LibraryPath>
+    <TargetName>gem</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\gem.gui\</OutDir>
+    <IntDir>$(SolutionDir)bin\Intermediate\$(Configuration)-$(Platform)\gem.gui\</IntDir>
+    <IncludePath>$(ProjectDir)Include;$(ProjectDir)..\thirdparty\imgui\Include;$(ProjectDir)..\gem.core\Include;$(ProjectDir)..\thirdparty\opengl\include;$(ProjectDir)..\thirdparty\SDL2-2.0.12\include;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\include;$(ProjectDir)..\thirdparty\IconFontCppHeaders;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)..\thirdparty\SFML-2.4.1\lib;$(ProjectDir)..\thirdparty\SDL2-2.0.12\lib\x64;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\lib\x64;$(LibraryPath)</LibraryPath>
+    <TargetName>gem</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <SupportJustMyCode>false</SupportJustMyCode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>opengl32.lib;SDL2.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <StackReserveSize>
+      </StackReserveSize>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>SDL2.lib;opengl32.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\thirdparty\imgui\Source\imgui.cpp" />
+    <ClCompile Include="..\thirdparty\imgui\Source\imgui_demo.cpp" />
+    <ClCompile Include="..\thirdparty\imgui\Source\imgui_draw.cpp" />
+    <ClCompile Include="..\thirdparty\imgui\Source\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="..\thirdparty\imgui\Source\imgui_impl_sdl.cpp" />
+    <ClCompile Include="..\thirdparty\imgui\Source\imgui_tables.cpp" />
+    <ClCompile Include="..\thirdparty\imgui\Source\imgui_widgets.cpp" />
+    <ClCompile Include="..\thirdparty\opengl\glad.c" />
+    <ClCompile Include="Source\AppLog.cpp" />
+    <ClCompile Include="Source\FontGlyphCache.cpp" />
+    <ClCompile Include="Source\GemApp.cpp" />
+    <ClCompile Include="Source\GemConfig.cpp" />
+    <ClCompile Include="Source\GemConsole.cpp" />
+    <ClCompile Include="Source\GemDebugger.cpp" />
+    <ClCompile Include="Source\GemSoundStream.cpp" />
+    <ClCompile Include="Source\MsgPad.cpp" />
+    <ClCompile Include="Source\OpenGL\Common.cpp" />
+    <ClCompile Include="Source\OpenGL\PixelUploader.cpp" />
+    <ClCompile Include="Source\RenderWindow.cpp" />
+    <ClCompile Include="Source\Main.cpp" />
+    <ClCompile Include="Source\Util.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\gem.core\gem.core.vcxproj">
+      <Project>{26c35621-fc07-43ab-bc05-1ddddacba283}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\thirdparty\imgui\Include\imconfig.h" />
+    <ClInclude Include="..\thirdparty\imgui\Include\imgui.h" />
+    <ClInclude Include="..\thirdparty\imgui\Include\imgui_impl_opengl3.h" />
+    <ClInclude Include="..\thirdparty\imgui\Include\imgui_impl_opengl3_loader.h" />
+    <ClInclude Include="..\thirdparty\imgui\Include\imgui_impl_sdl.h" />
+    <ClInclude Include="..\thirdparty\imgui\Include\imgui_internal.h" />
+    <ClInclude Include="..\thirdparty\imgui\Include\imstb_rectpack.h" />
+    <ClInclude Include="..\thirdparty\imgui\Include\imstb_textedit.h" />
+    <ClInclude Include="..\thirdparty\imgui\Include\imstb_truetype.h" />
+    <ClInclude Include="Include\AppLog.h" />
+    <ClInclude Include="Include\FontGlyphCache.h" />
+    <ClInclude Include="Include\GemApp.h" />
+    <ClInclude Include="Include\GemConfig.h" />
+    <ClInclude Include="Include\GemConsole.h" />
+    <ClInclude Include="Include\GemDebugger.h" />
+    <ClInclude Include="Include\GemSoundStream.h" />
+    <ClInclude Include="Include\MsgPad.h" />
+    <ClInclude Include="Include\OpenGL\Common.h" />
+    <ClInclude Include="Include\OpenGL\PixelUploader.h" />
+    <ClInclude Include="Include\RenderWindow.h" />
+    <ClInclude Include="Include\Util.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Gem.Gui.Targets" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="gem.gui.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="hex-gem.ico" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

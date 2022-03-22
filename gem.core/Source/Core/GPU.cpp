@@ -104,9 +104,9 @@ void GPU::TickStateMachine(int t_cycles)
 				}
 				else
 				{
-					sout = LCDMode::ReadingOam;
+					sout = LCDMode::ReadingOAM;
 
-					if (stat.OamIntEnabled)
+					if (stat.OAMIntEnabled)
 						interrupts->LCDStatusRequested = true;
 				}
 			}
@@ -121,7 +121,7 @@ void GPU::TickStateMachine(int t_cycles)
 				tAcc -= 456;
 				IncLineY();
 
-				// Seems like vblank gets to last for an extra line (line 0) but when switching to ReadingOam LY is reset to 0 again
+				// Seems like vblank gets to last for an extra line (line 0) but when switching to ReadingOAM LY is reset to 0 again
 				if (positions.LineY == 153)
 				{
 					positions.LineY = 0;
@@ -131,28 +131,28 @@ void GPU::TickStateMachine(int t_cycles)
 				else if (positions.LineY == 1)
 				{
 					// We entered this state when LineY was 144. This is 11 lines later
-					sout = LCDMode::ReadingOam;
+					sout = LCDMode::ReadingOAM;
 					positions.LineY = 0;
 
-					if (stat.OamIntEnabled)
+					if (stat.OAMIntEnabled)
 						interrupts->LCDStatusRequested = true;
 				}
 			}
 			break;
 		}
 
-		case LCDMode::ReadingOam: // (2)
+		case LCDMode::ReadingOAM: // (2)
 		{
 			if (tAcc >= 80)
 			{
 				tAcc -= 80;
-				sout = LCDMode::ReadingVRam;
+				sout = LCDMode::ReadingVRAM;
 			}
 
 			break;
 		}
 
-		case LCDMode::ReadingVRam: // (3)
+		case LCDMode::ReadingVRAM: // (3)
 		{
 			if (tAcc >= 172)
 			{
@@ -198,14 +198,14 @@ void GPU::LycLyCompare()
 {
 	if (positions.LineY == positions.LineYCompare)
 	{
-		stat.LycLyCoincidence = true;
+		stat.LYCLYCoincidence = true;
 
-		if (stat.LycLyCoincidenceIntEnabled)
+		if (stat.LYCLYCoincidenceIntEnabled)
 			interrupts->LCDStatusRequested = true;
 	}
 	else
 	{
-		stat.LycLyCoincidence = false;
+		stat.LYCLYCoincidence = false;
 	}
 }
 
@@ -242,7 +242,7 @@ void GPU::RenderLine()
 	RenderSpriteLine();
 }
 
-void GPU::GetTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttribute& tile_attr)
+void GPU::GetTilePixelRow(int line_pos, TilePixelRow& pixels, CGBTileAttribute& tile_attr)
 {
 	// This function takes a position in [0,255] and combined with LineY+SCY 
 	// computes the colours numbers for the 8 pixel row that needs to be rendedered
@@ -251,11 +251,11 @@ void GPU::GetTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttribute& 
 	const int abs_ln = (positions.LineY + positions.ScrollY) % TileMapWidth;
 	const int map_row_start = (abs_ln / 8) * 32;
 	int abs_col = line_pos + positions.ScrollX;
-	int map_index = control.GetBgTileMapVRamIndex() + map_row_start + (abs_col / 8) % 32; // Addr of 1byte tile num
+	int map_index = control.GetBGTileMapVRAMIndex() + map_row_start + (abs_col / 8) % 32; // Addr of 1byte tile num
 
 	uint8_t tile_num;
 
-	if (control.BgWindowTileDataSelect == 0)
+	if (control.BGWindowTileDataSelect == 0)
 		tile_num = int8_t(vram[map_index]) + 128;
 	else
 		tile_num = vram[map_index];
@@ -269,9 +269,9 @@ void GPU::GetTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttribute& 
 	else
 		pixel_row = abs_ln % 8;
 
-	int tile_data_index = control.GetTileDataVRamIndex() + (tile_num * 16) + (pixel_row * 2);
+	int tile_data_index = control.GetTileDataVRAMIndex() + (tile_num * 16) + (pixel_row * 2);
 
-	bool bank_1 = bCGB && tile_attr.VRamBank == 1;
+	bool bank_1 = bCGB && tile_attr.VRAMBank == 1;
 	bool horizontal_flip = bCGB && tile_attr.HorizontalFlip;
 	ReadPixels(pixels, tile_data_index, bank_1, horizontal_flip);
 }
@@ -279,10 +279,10 @@ void GPU::GetTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttribute& 
 void GPU::RenderBGLine()
 {
 	static TilePixelRow pixels;
-	static CgbTileAttribute tile_attr;
+	static CGBTileAttribute tile_attr;
 
 	// Skip if BG is disabled
-	if (!control.BgDisplay && !bCGB)
+	if (!control.BGDisplay && !bCGB)
 		return;
 
 	for (uint8_t i = 0; i < LCDWidth;)
@@ -324,7 +324,7 @@ void GPU::RenderBGLine()
 	}
 }
 
-void GPU::GetWindowTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttribute& tile_attr)
+void GPU::GetWindowTilePixelRow(int line_pos, TilePixelRow& pixels, CGBTileAttribute& tile_attr)
 {
 	// This function takes a position in [0,255] and combined with LineY+SCY 
 	// computes the colour numbers for the 8px-wide row that needs to be rendered.
@@ -333,11 +333,11 @@ void GPU::GetWindowTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttri
 	const int abs_ln = positions.WindowLineY;
 	const int map_row_start = (positions.WindowLineY / 8) * 32;
 
-	int map_index = control.GetWindowTileMapVRamIndex() + map_row_start + (line_pos / 8); // Addr of 1byte tile num
+	int map_index = control.GetWindowTileMapVRAMIndex() + map_row_start + (line_pos / 8); // Addr of 1byte tile num
 
 	uint8_t tile_num;
 
-	if (control.BgWindowTileDataSelect == 0)
+	if (control.BGWindowTileDataSelect == 0)
 		tile_num = int8_t(vram[map_index]) + 128;
 	else
 		tile_num = vram[map_index];
@@ -351,20 +351,20 @@ void GPU::GetWindowTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttri
 	else
 		pixel_row = abs_ln % 8;
 
-	int tile_data_index = control.GetTileDataVRamIndex() + (tile_num * 16) + (pixel_row * 2);
+	int tile_data_index = control.GetTileDataVRAMIndex() + (tile_num * 16) + (pixel_row * 2);
 
-	bool bank_1 = bCGB && tile_attr.VRamBank == 1;
+	bool bank_1 = bCGB && tile_attr.VRAMBank == 1;
 	bool horizontal_flip = bCGB && tile_attr.HorizontalFlip;
 	ReadPixels(pixels, tile_data_index, bank_1, horizontal_flip);
 }
 
 void GPU::RenderWindowLine()
 {
-	static CgbTileAttribute tile_attr;
+	static CGBTileAttribute tile_attr;
 	static TilePixelRow pixels;
 
 	// Skip if window is disabled
-	if (!control.WindowEnabled || (!bCGB && !control.BgDisplay))
+	if (!control.WindowEnabled || (!bCGB && !control.BGDisplay))
 		return;
 
 	if (positions.WindowX > 166 || positions.WindowY > positions.LineY)
@@ -481,7 +481,7 @@ void GPU::RenderSpriteLine()
 
 			uint8_t b0;
 			uint8_t b1;
-			if (bCGB && sprite.VRamBank == 1)
+			if (bCGB && sprite.VRAMBank == 1)
 			{
 				b0 = vram[0x2000 + data_index];
 				b1 = vram[0x2000 + data_index + 1];
@@ -514,8 +514,8 @@ void GPU::RenderSpriteLine()
 
 						bool replaced = px.ReplaceWithSpritePixel(sprColourPalette.GetColour(sprite.CGBPalette, pixels[i]),
 																	pixels[i], 
-																	sprite.BehindBg, 
-																	bCGB && control.BgDisplay);
+																	sprite.BehindBG, 
+																	bCGB && control.BGDisplay);
 
 						if (replaced && pixels[i] != 0) // Don't scale colour 0
 						{
@@ -534,7 +534,7 @@ void GPU::RenderSpriteLine()
 					int xpos = sprite.XPos + i;
 					if (xpos >= 0 && xpos <= LCDWidth)
 					{
-						frameBuffer[buff_index + i].ReplaceWithSpritePixel(sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[i]), pixels[i], sprite.BehindBg, false);
+						frameBuffer[buff_index + i].ReplaceWithSpritePixel(sprMonoPalettes[sprite.DMGPalette].GetColour(pixels[i]), pixels[i], sprite.BehindBG, false);
 					}
 				}
 			}
@@ -733,9 +733,9 @@ uint8_t GPU::ReadRegister(uint16_t addr)
 
 uint8_t GPU::ReadByteVRAM(uint16_t addr)
 {
-	if (stat.Mode == LCDMode::ReadingVRam)
+	if (stat.Mode == LCDMode::ReadingVRAM)
 	{
-		LOG_VIOLATION("[GPU] VRAM access during ReadingVRam mode (3) (or BetweenLines(5))");
+		LOG_VIOLATION("[GPU] VRAM access during ReadingVRAM mode (3) (or BetweenLines(5))");
 	}
 
 	int relative_addr = vramOffset + (addr & 0x1FFF);
@@ -744,8 +744,8 @@ uint8_t GPU::ReadByteVRAM(uint16_t addr)
 
 void GPU::WriteByteVRAM(uint16_t addr, uint8_t value)
 {
-	if (stat.Mode == LCDMode::ReadingVRam)
-		LOG_VIOLATION("Cannot access VRAM during ReadingVRam(3) mode");
+	if (stat.Mode == LCDMode::ReadingVRAM)
+		LOG_VIOLATION("Cannot access VRAM during ReadingVRAM(3) mode");
 
 	int relative_addr = vramOffset + (addr & 0x1FFF);
 	vram[relative_addr] = value;
@@ -753,7 +753,7 @@ void GPU::WriteByteVRAM(uint16_t addr, uint8_t value)
 
 uint8_t GPU::ReadByteOAM(uint16_t addr)
 {
-	if (stat.Mode == LCDMode::ReadingOam)
+	if (stat.Mode == LCDMode::ReadingOAM)
 		LOG_VIOLATION("[GPU] OAM access during BetweenBlanks(5) mode");
 
 	return oam[addr & 0xFF];
@@ -780,7 +780,7 @@ void GPU::DmaTransferToOam(uint8_t source)
 
 void GPU::WriteDWordOAM(uint16_t addr, uint8_t byte0, uint8_t byte1, uint8_t byte2, uint8_t byte3)
 {
-	if (stat.Mode == LCDMode::ReadingOam)
+	if (stat.Mode == LCDMode::ReadingOAM)
 		LOG_VIOLATION("[GPU] OAM access during BetweenBlanks(5) mode");
 
 	int offset = addr & 0xFF;
@@ -800,7 +800,7 @@ void GPU::WriteDWordOAM(uint16_t addr, uint8_t byte0, uint8_t byte1, uint8_t byt
 
 void GPU::WriteByteOAM(uint16_t addr, uint8_t value)
 {
-	if (stat.Mode == LCDMode::ReadingOam)
+	if (stat.Mode == LCDMode::ReadingOAM)
 		LOG_VIOLATION("[GPU] OAM access during BetweenBlanks(5) mode");
 
 	int offset = addr & 0xFF;
@@ -815,61 +815,72 @@ void GPU::WriteByteOAM(uint16_t addr, uint8_t value)
 	sprites[sprite_index].DecodeFromOAM(base_addr, oam.Ptr() + sprite_index * 4);
 }
 
-void GPU::RenderTilesViz(ColourBuffer* out_buffers, CgbTileAttribute* out_attrs)
+void GPU::RenderTilesViz(int tile_set, ColourBuffer* out_buffers, CGBTileAttribute* out_attrs, uint16_t* addrs)
 {
 	static TilePixelRow pixels;
+
+	assert(tile_set == 0 || tile_set == 1 || tile_set == -1);
+
 	uint8_t b0;
 	uint8_t b1;
 
-	int offset = 0;control.GetTileDataVRamIndex();
+	int offset;
+	if (tile_set == -1)
+		tile_set = control.BGWindowTileDataSelect;
+
+	if (tile_set == 0)
+		offset = 0x800;
+	else
+		offset = 0;
 
 	for (int idx = 0; idx < GPU::NumTilesPerSet; idx++)
 	{
 		int vram_idx = offset + idx * 16;
 
-		CgbTileAttribute& tile_attr = out_attrs[idx];
+		CGBTileAttribute& tile_attr = out_attrs[idx];
 		tile_attr.DecodeFromByte(bCGB ? vram[vram_idx] : 0);
 
-		int data_idx = vram_idx;
 		ColourBuffer& viz_buffer = out_buffers[idx];
+
+		addrs[idx] = 0x8000 | vram_idx;
 
 		for (int r = 0; r < 8; r++)
 		{
-			data_idx += r * 2;
+			int data_idx = vram_idx + r * 2;
 
-			b0 = vram[data_idx];
-			b1 = vram[data_idx + 1];
-			DecodePixels(pixels, b0, b1, bCGB && tile_attr.HorizontalFlip);
+			bool bank_1 = false; //bCGB && tile_attr.VRAMBank == 1;
+			bool hflip = bCGB && tile_attr.HorizontalFlip;
+			ReadPixels(pixels, data_idx, false, false);
 
 			if (bCGB)
 			{
-				viz_buffer.SetPixel(0, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[0]));
-				viz_buffer.CorrectPixel(0, r, GetColourCorrectionMode());
-				viz_buffer.SetPixel(1, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[1]));
-				viz_buffer.CorrectPixel(1, r, GetColourCorrectionMode());
-				viz_buffer.SetPixel(2, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[2]));
-				viz_buffer.CorrectPixel(2, r, GetColourCorrectionMode());
-				viz_buffer.SetPixel(3, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[3]));
-				viz_buffer.CorrectPixel(3, r, GetColourCorrectionMode());
-				viz_buffer.SetPixel(4, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[4]));
-				viz_buffer.CorrectPixel(4, r, GetColourCorrectionMode());
-				viz_buffer.SetPixel(5, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[5]));
-				viz_buffer.CorrectPixel(5, r, GetColourCorrectionMode());
-				viz_buffer.SetPixel(6, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[6]));
-				viz_buffer.CorrectPixel(6, r, GetColourCorrectionMode());
-				viz_buffer.SetPixel(7, r, bgColourPalette.GetColour(tile_attr.Palette, pixels[7]));
-				viz_buffer.CorrectPixel(7, r, GetColourCorrectionMode());
+				viz_buffer[r * 8 + 0] = bgColourPalette.GetColour(tile_attr.Palette, pixels[0]);
+				viz_buffer[r * 8 + 0].Correct(GetColourCorrectionMode(), 1.0f);
+				viz_buffer[r * 8 + 1] = bgColourPalette.GetColour(tile_attr.Palette, pixels[1]);
+				viz_buffer[r * 8 + 1].Correct(GetColourCorrectionMode(), 1.0f);
+				viz_buffer[r * 8 + 2] = bgColourPalette.GetColour(tile_attr.Palette, pixels[2]);
+				viz_buffer[r * 8 + 2].Correct(GetColourCorrectionMode(), 1.0f);
+				viz_buffer[r * 8 + 3] = bgColourPalette.GetColour(tile_attr.Palette, pixels[3]);
+				viz_buffer[r * 8 + 3].Correct(GetColourCorrectionMode(), 1.0f);
+				viz_buffer[r * 8 + 4] = bgColourPalette.GetColour(tile_attr.Palette, pixels[4]);
+				viz_buffer[r * 8 + 4].Correct(GetColourCorrectionMode(), 1.0f);
+				viz_buffer[r * 8 + 5] = bgColourPalette.GetColour(tile_attr.Palette, pixels[5]);
+				viz_buffer[r * 8 + 5].Correct(GetColourCorrectionMode(), 1.0f);
+				viz_buffer[r * 8 + 6] = bgColourPalette.GetColour(tile_attr.Palette, pixels[6]);
+				viz_buffer[r * 8 + 6].Correct(GetColourCorrectionMode(), 1.0f);
+				viz_buffer[r * 8 + 7] = bgColourPalette.GetColour(tile_attr.Palette, pixels[7]);
+				viz_buffer[r * 8 + 7].Correct(GetColourCorrectionMode(), 1.0f);
 			}
 			else
 			{
-				viz_buffer.SetPixel(0, r, bgMonoPalette.GetColour(pixels[0]));
-				viz_buffer.SetPixel(1, r, bgMonoPalette.GetColour(pixels[1]));
-				viz_buffer.SetPixel(2, r, bgMonoPalette.GetColour(pixels[2]));
-				viz_buffer.SetPixel(3, r, bgMonoPalette.GetColour(pixels[3]));
-				viz_buffer.SetPixel(4, r, bgMonoPalette.GetColour(pixels[4]));
-				viz_buffer.SetPixel(5, r, bgMonoPalette.GetColour(pixels[5]));
-				viz_buffer.SetPixel(6, r, bgMonoPalette.GetColour(pixels[6]));
-				viz_buffer.SetPixel(7, r, bgMonoPalette.GetColour(pixels[7]));
+				viz_buffer[r * 8 + 0] = bgMonoPalette.GetColour(pixels[0]);
+				viz_buffer[r * 8 + 1] = bgMonoPalette.GetColour(pixels[1]);
+				viz_buffer[r * 8 + 2] = bgMonoPalette.GetColour(pixels[2]);
+				viz_buffer[r * 8 + 3] = bgMonoPalette.GetColour(pixels[3]);
+				viz_buffer[r * 8 + 4] = bgMonoPalette.GetColour(pixels[4]);
+				viz_buffer[r * 8 + 5] = bgMonoPalette.GetColour(pixels[5]);
+				viz_buffer[r * 8 + 6] = bgMonoPalette.GetColour(pixels[6]);
+				viz_buffer[r * 8 + 7] = bgMonoPalette.GetColour(pixels[7]);
 			}
 		}
 	}
@@ -929,7 +940,7 @@ void GPU::RenderSpritesViz(ColourBuffer* out_buffers, SpriteData* out_sprites)
 
 				uint8_t b0 = 0;
 				uint8_t b1 = 0;
-				if (bCGB && sprite.VRamBank == 1)
+				if (bCGB && sprite.VRAMBank == 1)
 				{
 					b0 = vram[0x2000 + tile_data_vram_index];
 					b1 = vram[0x2000 + tile_data_vram_index + 1];
@@ -1111,10 +1122,10 @@ The LCD controller's state/mode transition logic can be treated like a finite st
 The ascii diagram below shows how the states (LCDMode) can transition. (2) transitions to (3). (3) transitions to (0).
 (0) either transitions to (1) or (2) and (1) transitions to (2). All of them can transition to themselves.
 
- ________              ____________            ________           ___________
-V        \            V            \          V        \         V           \
-{ReadingOam(2)}---->{ReadingVRam(3)}------>{HBlank(0)}----->{VBlank(1)}---|
-^                                               /                 /
-\______________________________________________/_________________/
+    ___________           ____________            ________           _______
+   V           \         V            \          V        \         V       \
+{ReadingOAM(2)}---->{ReadingVRAM(3)}------>{HBlank(0)}-------->{VBlank(1)}---|
+   ^                                            /                 /
+   \___________________________________________/_________________/
 
 */

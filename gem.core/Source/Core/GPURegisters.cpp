@@ -12,29 +12,29 @@ using namespace std;
 // Initial value = 0x91
 LCDControlRegister::LCDControlRegister()
 	: Enabled(true)					// Bit 7
-	, WindowTileMapSelect(0)			// Bit 6
+	, WindowTileMapSelect(0)		// Bit 6
 	, WindowEnabled(false)			// Bit 5
-	, BgWindowTileDataSelect(1)		// Bit 4
-	, BgTileMapSelect(0)				// Bit 3
+	, BGWindowTileDataSelect(1)		// Bit 4
+	, BGTileMapSelect(0)			// Bit 3
 	, SpriteSize(0)					// Bit 2
 	, SpriteEnabled(false)			// Bit 1
-	, BgDisplay(true)				// Bit 0
+	, BGDisplay(true)				// Bit 0
 	, RegisterByte(0x90)
 {
 }
 
 
 // Where to retrieve BG tile numbers from
-int LCDControlRegister::GetBgTileMapVRamIndex() const
+int LCDControlRegister::GetBGTileMapVRAMIndex() const
 {
-	if (BgTileMapSelect == 0)
+	if (BGTileMapSelect == 0)
 		return 0x1800; // 9800h - 9BFFh
 	else
 		return 0x1C00; // 9C00h - 9FFFh
 }
 
 // Where to retrieve window tile numbers from
-int LCDControlRegister::GetWindowTileMapVRamIndex() const
+int LCDControlRegister::GetWindowTileMapVRAMIndex() const
 {
 	if (WindowTileMapSelect == 0)
 		return 0x1800; // 9800h - 9BFFh
@@ -43,9 +43,9 @@ int LCDControlRegister::GetWindowTileMapVRamIndex() const
 }
 
 // Where to retrieve tile data from
-int LCDControlRegister::GetTileDataVRamIndex() const
+int LCDControlRegister::GetTileDataVRAMIndex() const
 {
-	if (BgWindowTileDataSelect == 0)
+	if (BGWindowTileDataSelect == 0)
 		return 0x800; // 8800h - 97FFh
 	else
 		return 0x0; // 8000h - 8FFFh
@@ -56,11 +56,11 @@ void LCDControlRegister::WriteByte(uint8_t value)
 	Enabled = (value & 0x80) == 0x80;
 	WindowTileMapSelect = (value & 0x40) >> 6;
 	WindowEnabled = (value & 0x20) == 0x20;
-	BgWindowTileDataSelect = (value & 0x10) >> 4;
-	BgTileMapSelect = (value & 0x08) >> 3;
+	BGWindowTileDataSelect = (value & 0x10) >> 4;
+	BGTileMapSelect = (value & 0x08) >> 3;
 	SpriteSize = (value & 0x04) >> 2;
 	SpriteEnabled = (value & 0x02) == 0x02;
-	BgDisplay = (value & 0x01) == 0x01;
+	BGDisplay = (value & 0x01) == 0x01;
 	RegisterByte = value;
 }
 
@@ -79,8 +79,8 @@ LCDStatusRegister::LCDStatusRegister() : LCDStatusRegister(true)
 }
 
 LCDStatusRegister::LCDStatusRegister(bool bCGB)
-	: LycLyCoincidenceIntEnabled(false) // Bit 6
-	, OamIntEnabled(false) // Bit 5
+	: LYCLYCoincidenceIntEnabled(false) // Bit 6
+	, OAMIntEnabled(false) // Bit 5
 	, VBlankIntEnabled(false) // Bit 4
 	, HBlankIntEnabled(false) // Bit 3
 	, Mode(LCDMode::VBlank) // Bit 1-0
@@ -89,15 +89,15 @@ LCDStatusRegister::LCDStatusRegister(bool bCGB)
 	// From observing BGB, it appears this is the only difference between CGB and non-CGB mode
 	// Bit 4
 	if (bCGB)
-		LycLyCoincidence = false;
+		LYCLYCoincidence = false;
 	else
-		LycLyCoincidence = true;
+		LYCLYCoincidence = true;
 }
 
 void LCDStatusRegister::WriteByte(uint8_t value)
 {
-	LycLyCoincidenceIntEnabled = (value & 0x40) == 0x40;
-	OamIntEnabled = (value & 0x20) == 0x20;
+	LYCLYCoincidenceIntEnabled = (value & 0x40) == 0x40;
+	OAMIntEnabled = (value & 0x20) == 0x20;
 	VBlankIntEnabled = (value & 0x10) == 0x10;
 	HBlankIntEnabled = (value & 0x08) == 0x08;
 	// Lower 3 bits are readonly
@@ -111,7 +111,7 @@ void LCDStatusRegister::Reset(bool bCGB)
 
 uint8_t LCDStatusRegister::ReadByte() const
 {
-	return RegisterByte | (LycLyCoincidence << 2) | static_cast<uint8_t>(Mode);
+	return RegisterByte | (LYCLYCoincidence << 2) | static_cast<uint8_t>(Mode);
 }
 
 ///////////////////////////
@@ -261,21 +261,21 @@ const GemColour& ColourPalette::GetColour(int palette, int colour_number)
 /// CGB Tile Attribute ///
 //////////////////////////
 
-CgbTileAttribute::CgbTileAttribute()
+CGBTileAttribute::CGBTileAttribute()
 {
 }
 
-CgbTileAttribute::CgbTileAttribute(uint8_t value)
+CGBTileAttribute::CGBTileAttribute(uint8_t value)
 {
 	DecodeFromByte(value);
 }
 
-void CgbTileAttribute::DecodeFromByte(uint8_t value)
+void CGBTileAttribute::DecodeFromByte(uint8_t value)
 {
 	PriorityOverSprites = (value & 0x80) == 0x80;
 	VerticalFlip = (value & 0x40) == 0x40;
 	HorizontalFlip = (value & 0x20) == 0x20;
-	VRamBank = (value & 0x08) == 0x08 ? 1 : 0;
+	VRAMBank = (value & 0x08) == 0x08 ? 1 : 0;
 	Palette = value & 0x07;
 }
 
@@ -295,11 +295,11 @@ void SpriteData::Reset(bool bCGB)
 	YPos = 0;
 	XPos = 0;
 	Tile = 0;
-	BehindBg = false;
+	BehindBG = false;
 	VerticalFlip = false;
 	HorizontalFlip = false;
 	DMGPalette = -1;
-	VRamBank = -1;
+	VRAMBank = -1;
 	CGBPalette = -1;
 	IsZero = true;
 }
@@ -323,14 +323,14 @@ void SpriteData::DecodeFromOAM(uint16_t addr, uint8_t byte0, uint8_t byte1, uint
 
 	uint8_t attrs = byte3;
 
-	BehindBg =			(attrs & 0x80) == 0x80;
+	BehindBG =			(attrs & 0x80) == 0x80;
 	VerticalFlip =		(attrs & 0x40) == 0x40;
 	HorizontalFlip =	(attrs & 0x20) == 0x20;
 	DMGPalette =		(attrs & 0x10) >> 4;
 	
-	// VRamBank and CGBPalette are only valid in CGB mode but that's
+	// VRAMBank and CGBPalette are only valid in CGB mode but that's
 	// enforced by the GPU class when it selects which to use for a sprite
-	VRamBank = (attrs & 0x08) == 0 ? 0 : 1;
+	VRAMBank = (attrs & 0x08) == 0 ? 0 : 1;
 	CGBPalette = attrs & 0x07;
 
 	IsZero = byte0 == 0 && byte1 == 0 && byte2 == 0 && byte3 == 0;
@@ -340,12 +340,12 @@ void SpriteData::DecodeFromOAM(uint16_t addr, uint8_t byte0, uint8_t byte1, uint
 /// VRAM DMA Transfer Reg. ///
 //////////////////////////////
 
-DmaTransferRegisters::DmaTransferRegisters()
+DMATransferRegisters::DMATransferRegisters()
 {
 	Reset();
 }
 
-void DmaTransferRegisters::Reset()
+void DMATransferRegisters::Reset()
 {
 	Source = 0;
 	Dest = 0;
@@ -354,7 +354,7 @@ void DmaTransferRegisters::Reset()
 	Active = false;
 }
 
-uint8_t DmaTransferRegisters::ReadByte(uint16_t addr) const
+uint8_t DMATransferRegisters::ReadByte(uint16_t addr) const
 {
 	switch (addr)
 	{
@@ -373,7 +373,7 @@ uint8_t DmaTransferRegisters::ReadByte(uint16_t addr) const
 	}
 }
 
-void DmaTransferRegisters::WriteByte(uint16_t addr, uint8_t value)
+void DMATransferRegisters::WriteByte(uint16_t addr, uint8_t value)
 {
 	switch (addr)
 	{

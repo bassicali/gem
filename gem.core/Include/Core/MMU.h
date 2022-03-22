@@ -15,24 +15,7 @@
 #include "Core/MBC.h"
 #include "Core/Serial.h"
 #include "Core/Joypad.h"
-
-struct RWBreakpoint
-{
-	uint16_t Addr;
-	uint8_t Value;
-	bool CheckValue;
-	bool ValueIsMask;
-	bool Hit;
-
-	RWBreakpoint() : Addr(0), Value(0), CheckValue(false), ValueIsMask(false), Hit(false)
-	{
-	}
-
-	RWBreakpoint(uint16_t addr, uint8_t val, bool checkval, bool is_mask) : Addr(addr), Value(val), CheckValue(checkval), ValueIsMask(is_mask), Hit(false)
-	{
-	}
-};
-
+#include "Disassembler.h"
 
 class MMU : public IMappedComponent, public std::enable_shared_from_this<MMU>
 {
@@ -52,10 +35,9 @@ class MMU : public IMappedComponent, public std::enable_shared_from_this<MMU>
 		void WriteByteWorkingRam(uint16_t addr, bool bank0, uint8_t value);
 		uint8_t ReadByteWorkingRam(uint16_t addr, bool bank0);
 
-		std::vector<RWBreakpoint>& ReadBreakpoints() { return readBreakpoints; }
-		std::vector<RWBreakpoint>& WriteBreakpoints() { return writeBreakpoints; }
+		void SetReadBreakpoints(std::vector<Breakpoint>& bps) { readBreakpoints = &bps; }
+		void SetWriteBreakpoints(std::vector<Breakpoint>& bps) { writeBreakpoints = &bps; }
 		void EvalBreakpoints(bool eval) { evalBreakpoints = eval; }
-		bool AnyBreakpoints() const { return readBreakpoints.size() != 0 || writeBreakpoints.size() != 0; }
 		
 		std::shared_ptr<CartridgeReader> GetCartridgeReader() { return cart; }
 		
@@ -76,8 +58,8 @@ class MMU : public IMappedComponent, public std::enable_shared_from_this<MMU>
 	private:
 		bool bCGB;
 
-		std::vector<RWBreakpoint> writeBreakpoints;
-		std::vector<RWBreakpoint> readBreakpoints;
+		std::vector<Breakpoint>* writeBreakpoints;
+		std::vector<Breakpoint>* readBreakpoints;
 		bool evalBreakpoints;
 
 		MBC mbc;

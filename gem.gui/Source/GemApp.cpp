@@ -177,7 +177,8 @@ bool GemApp::InitCore()
 
 	GMsgPad.EmulationPaused.store(GemConfig::Get().PauseAfterOpen || GMsgPad.ROMPath.empty());
 
-	debugger.Reset();
+	if (debugger.IsInitialized())
+		debugger.Reset();
 
 	return true;
 }
@@ -284,7 +285,7 @@ bool GemApp::LoopWork()
 			sound.Play();
 
 		// Emulate the core for 1 frame, handling breakpoints if needed
-		if (breakpoints.size() == 0 && !core.GetMMU()->AnyBreakpoints())
+		if (breakpoints.size() == 0 && !debugger.AnyBreakpoints())
 		{
 			core.TickUntilVBlank();
 			swap = true;
@@ -314,8 +315,8 @@ bool GemApp::DebuggerTick(bool emu_paused)
 	bool hit = false, vblank = false;
 	bool stepping_finished = !emu_paused;
 	int bp_index = -1, rbp_index = -1, wbp_index = -1;
-	const vector<RWBreakpoint>& rbps = core.GetMMU()->ReadBreakpoints();
-	const vector<RWBreakpoint>& wbps = core.GetMMU()->WriteBreakpoints();
+	const vector<Breakpoint>& rbps = debugger.ReadBreakpoints();
+	const vector<Breakpoint>& wbps = debugger.WriteBreakpoints();
 	const vector<Breakpoint>& breakpoints = debugger.Breakpoints();
 	core.GetMMU()->EvalBreakpoints(true);
 
@@ -325,7 +326,7 @@ bool GemApp::DebuggerTick(bool emu_paused)
 
 		for (int i = 0; i < breakpoints.size(); i++)
 		{
-			if (breakpoints[i].Enabled && breakpoints[i].Addr == core.GetCPU().GetPC())
+			if (breakpoints[i].Enabled && breakpoints[i].Address == core.GetCPU().GetPC())
 			{
 				bp_index = i;
 				hit = true;
@@ -385,27 +386,27 @@ bool GemApp::DebuggerTick(bool emu_paused)
 	if (bp_index >= 0)
 	{
 		GMsgPad.EmulationPaused.store(true);
-		GemConsole::Get().PrintLn("Breakpoint hit: %04Xh", breakpoints[bp_index].Addr);
+		GemConsole::Get().PrintLn("Breakpoint hit: %04Xh", breakpoints[bp_index].Address);
 	}
 	else if (wbp_index >= 0)
 	{
 		GMsgPad.EmulationPaused.store(true);
-		const RWBreakpoint& bp = wbps[wbp_index];
+		const Breakpoint& bp = wbps[wbp_index];
 
 		if (bp.CheckValue)
-			GemConsole::Get().PrintLn("MMU Write Breakpoint hit: %04Xh %02Xh", bp.Addr, bp.Value);
+			GemConsole::Get().PrintLn("MMU Write Breakpoint hit: %04Xh %02Xh", bp.Address, bp.Value);
 		else
-			GemConsole::Get().PrintLn("MMU Write Breakpoint hit: %04Xh", bp.Addr);
+			GemConsole::Get().PrintLn("MMU Write Breakpoint hit: %04Xh", bp.Address);
 	}
 	else if (rbp_index >= 0)
 	{
 		GMsgPad.EmulationPaused.store(true);
-		const RWBreakpoint& bp = rbps[rbp_index];
+		const Breakpoint& bp = rbps[rbp_index];
 
 		if (bp.CheckValue)
-			GemConsole::Get().PrintLn("MMU Read Breakpoint hit: %04Xh %02Xh", bp.Addr, bp.Value);
+			GemConsole::Get().PrintLn("MMU Read Breakpoint hit: %04Xh %02Xh", bp.Address, bp.Value);
 		else
-			GemConsole::Get().PrintLn("MMU Read Breakpoint hit: %04Xh", bp.Addr);
+			GemConsole::Get().PrintLn("MMU Read Breakpoint hit: %04Xh", bp.Address);
 	}
 	else if (emu_paused && stepping_finished)
 	{

@@ -72,7 +72,7 @@ class GPU
 		void ClearFrameBuffer() { frameBuffer.Zero(); }
 
 		void RenderSpritesViz(ColourBuffer* out_buffers, SpriteData* out_sprites);
-		void RenderTilesViz(ColourBuffer* out_buffers, CgbTileAttribute* out_attrs);
+		void RenderTilesViz(int tile_set, ColourBuffer* out_buffers, CGBTileAttribute* out_attrs, uint16_t* addrs);
 		void RenderPalettesViz(ColourBuffer* out_buffers, ColourPalette::PaletteEntry* out_entries);
 
 		CorrectionMode GetColourCorrectionMode() const { return correctionMode; }
@@ -85,7 +85,7 @@ class GPU
 		static const int VRAMSize = 0x2000 * 2; // 8kb * 2 banks
 		static const int OAMSize = 0xA0; // 160 bytes (4bytes per sprite)
 		static const int NumSprites = 40;
-		static const int NumTilesPerSet = 128;
+		static const int NumTilesPerSet = 256;
 		static const int NumPaletteColours = 64;
 
 		static const int LCDWidth = 160;
@@ -104,8 +104,8 @@ class GPU
 		void RenderBGLine();
 		void RenderWindowLine();
 		void RenderSpriteLine();
-		void GetTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttribute& tile_attr);
-		void GetWindowTilePixelRow(int line_pos, TilePixelRow& pixels, CgbTileAttribute& tile_attr);
+		void GetTilePixelRow(int line_pos, TilePixelRow& pixels, CGBTileAttribute& tile_attr);
+		void GetWindowTilePixelRow(int line_pos, TilePixelRow& pixels, CGBTileAttribute& tile_attr);
 		void ReadPixels(TilePixelRow& pixels, int vram_index, bool read_bank_1, bool horizontal_flip);
 		void DecodePixels(TilePixelRow& pixels, uint8_t b0, uint8_t b1, bool horizontal_flip);
 
@@ -118,7 +118,7 @@ class GPU
 		DArray<uint8_t> oam;
 		SpriteData sprites[NumSprites];
 
-		DmaTransferRegisters dma;
+		DMATransferRegisters dma;
 		uint16_t dmaSrc;
 		uint16_t dmaDest;
 		void DmaTransferToOam(uint8_t source);

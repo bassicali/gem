@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="CopyRuntimeDependencies" AfterTargets="Build">
+    <PropertyGroup>
+      <SDL_DirectoryName>SDL2-2.0.12</SDL_DirectoryName>
+      <SDL_TTF_DirectoryName>SDL2_ttf-2.0.15</SDL_TTF_DirectoryName>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\$(SDL_DirectoryName)\lib\x64\SDL2.dll"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\$(SDL_TTF_DirectoryName)\lib\x64\SDL2_ttf.dll"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\$(SDL_TTF_DirectoryName)\lib\x64\libfreetype-6.dll"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\zlib\bin\x64\zlib1.dll"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\fonts\imgui\DroidSans.ttf"/>
+    </ItemGroup>
+    
+    <Copy SourceFiles="@(RuntimeDependencies)" DestinationFolder="$(OutDir)"/>
+  </Target>
+</Project>

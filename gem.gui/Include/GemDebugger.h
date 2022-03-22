@@ -1,6 +1,7 @@
 
 #include <vector>
 #include <string>
+#include <tuple>
 
 #include <SDL_syswm.h>
 
@@ -90,6 +91,9 @@ public:
 	int SDLWindowId() const { return windowId; }
 
 	std::vector<Breakpoint>& Breakpoints() { return breakpoints; }
+	std::vector<Breakpoint>& ReadBreakpoints() { return readBreakpoints; }
+	std::vector<Breakpoint>& WriteBreakpoints() { return writeBreakpoints; }
+	bool AnyBreakpoints() const { return (breakpoints.size() + readBreakpoints.size() + writeBreakpoints.size()) > 0; }
 
 	bool RefreshModel;
 
@@ -100,12 +104,16 @@ private:
 	void LayoutAudioVisuals();
 	void UpdateDisassembly(uint16_t addr);
 	void GenerateDisassemblyText(const DisassemblyChunk& chunk, std::vector<std::string>& out_text);
+	bool CaptureScreenshot(std::string filename);
+
+	bool AddBreakpoint(Breakpoint& bp);
+	bool RemoveBreakpoint(uint16_t address, BreakpointType type = BreakpointType::None, bool unmark_dasm = false);
 
 	Gem* core;
 	UIEditingModel model;
 
 	const int WND_WIDTH = 700;
-	const int WND_HEIGHT = 580;
+	const int WND_HEIGHT = 600;
 
 	SDL_Window* window;
 	SDL_GLContext glContext;
@@ -119,6 +127,8 @@ private:
 	EmittersSnapshot audioSnapshot;
 
 	std::vector<Breakpoint> breakpoints;
+	std::vector<Breakpoint> readBreakpoints;
+	std::vector<Breakpoint> writeBreakpoints;
 
 	std::vector<std::string> disassemblyTextList;
 	DisassemblyChunk* currentDisassemblyChunk;
@@ -127,9 +137,10 @@ private:
 	ColourBuffer spriteBuffers[GPU::NumSprites];
 	PixelUploader spritePxUploaders[GPU::NumSprites];
 
-	CgbTileAttribute tileAttrs[GPU::NumTilesPerSet];
+	CGBTileAttribute tileAttrs[GPU::NumTilesPerSet];
 	ColourBuffer tileBuffers[GPU::NumTilesPerSet];
 	PixelUploader tilePxUploaders[GPU::NumTilesPerSet];
+	uint16_t tileNumbers[GPU::NumTilesPerSet];
 
 	ColourPalette::PaletteEntry paletteEntries[GPU::NumPaletteColours];
 	ColourBuffer paletteBuffers[GPU::NumPaletteColours];

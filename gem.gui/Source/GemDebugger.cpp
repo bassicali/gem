@@ -28,6 +28,11 @@ ImFont* UIFont = nullptr;
 ImFont* MonoFont = nullptr;
 ImFont* IconFont = nullptr;
 
+static char regular_fmt[] = "##Breakpoint_%d";
+static char read_fmt[] = "##RBreakpoint_%d";
+static char write_fmt[] = "##WBreakpoint_%d";
+static char id_buffer[32];
+
 GemDebugger::GemDebugger()
 	: core(nullptr)
 	, window(nullptr)
@@ -297,20 +302,9 @@ void GemDebugger::LayoutWidgets()
 									*bp = !*bp;
 
 									if (*bp)
-									{
-										breakpoints.push_back(Breakpoint(entry.Address));
-									}
+										AddBreakpoint(Breakpoint(entry.Address));
 									else
-									{
-										for (int i = 0; i < breakpoints.size(); i++)
-										{
-											if (breakpoints[i].Addr == entry.Address)
-											{
-												breakpoints.erase(breakpoints.begin() + i);
-												break;
-											}
-										}
-									}
+										RemoveBreakpoint(entry.Address);
 								}
 							}
 
@@ -435,40 +429,132 @@ void GemDebugger::LayoutWidgets()
 					
 					ImGui::Separator();
 
-					ImGui::Text("Timers");
-					if (ImGui::BeginTable("TimerInfoTable", 3, ImGuiTableFlags_None))
+					ImGui::Text("Breakpoints (%d)", breakpoints.size() + readBreakpoints.size() + writeBreakpoints.size());
+					
+					if (ImGui::SmallButton("Add##AddMemBPButton"))
 					{
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(2);
-						ImGui::Text("Frequency");
+						ImGui::OpenPopup("Add Breakpoint");
+					}
 
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImGui::Text("DIV");
-						ImGui::TableSetColumnIndex(1);
-						ImGui::Text("%d", core->GetMMU()->GetTimerController().Divider);
-						ImGui::TableSetColumnIndex(2);
-						ImGui::Text("16384 Hz", core->GetMMU()->GetTimerController().Divider);
+					if (ImGui::BeginPopupModal("Add Breakpoint", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+					{
+						static int add_bp_addr = 0;
+						static int add_bp_memval = 0;
+						static int add_bp_type = 0;
+						static bool add_bp_hasval = false;
+						static bool add_bp_ismask = false;
 
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImGui::Text("TIMA");
-						ImGui::TableSetColumnIndex(1);
-						ImGui::Text("%d", core->GetMMU()->GetTimerController().Counter);
-						ImGui::TableSetColumnIndex(2);
-						ImGui::Text("%d Hz", core->GetMMU()->GetTimerController().GetCounterFrequency());
+						ImGui::InputInt("Address##BP_Address", &add_bp_addr, 1, 100, ImGuiInputTextFlags_CharsHexadecimal);
+						const char* bp_type_options[] = { "Normal", "MemRead", "MemWrite" };
+						static int bp_type_current_idx = 0;
+						const char* bp_type_preview_value = bp_type_options[bp_type_current_idx];
+						if (ImGui::BeginCombo("Type", bp_type_preview_value))
+						{
+							for (int n = 0; n < 3; n++)
+							{
+								const bool is_selected = (bp_type_current_idx == n);
+								if (ImGui::Selectable(bp_type_options[n], is_selected))
+									bp_type_current_idx = n;
 
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImGui::Text("TMA");
-						ImGui::TableSetColumnIndex(1);
-						ImGui::Text("%d", core->GetMMU()->GetTimerController().Modulo);
-						
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImGui::Text("Frames");
-						ImGui::TableSetColumnIndex(1);
-						ImGui::Text("%d", core->GetFrameCount());
+								if (is_selected)
+									ImGui::SetItemDefaultFocus();
+							}
+							ImGui::EndCombo();
+						}
+
+						ImGui::Checkbox("Check Value", &add_bp_hasval);
+						ImGui::Checkbox("Value Is Mask", &add_bp_ismask);
+						ImGui::InputInt("Value", &add_bp_memval, 1, 100, ImGuiInputTextFlags_CharsHexadecimal);
+
+						if (ImGui::Button("Add##BP_Add"))
+						{
+							if (add_bp_addr >= 0 && add_bp_addr <= 0xFFFF)
+							{
+								auto type = (BreakpointType)bp_type_current_idx;
+								auto bp = Breakpoint(type, add_bp_addr, add_bp_memval & 0xFF, add_bp_hasval, add_bp_ismask);
+
+								if (AddBreakpoint(bp))
+									ImGui::CloseCurrentPopup();
+							}
+						}
+
+						ImGui::SameLine();
+
+						if (ImGui::Button("Cancel"))
+						{
+							ImGui::CloseCurrentPopup();
+						}
+
+						ImGui::EndPopup();
+					}
+
+					if (ImGui::BeginTable("BreakpointsTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+					{
+						ImGui::TableSetupColumn("Address");
+						ImGui::TableSetupColumn("Flag");
+						ImGui::TableSetupColumn("Value");
+						ImGui::TableSetupColumn("Break", ImGuiTableColumnFlags_WidthFixed);
+						ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+						ImGui::TableHeadersRow();
+
+						ImGui::PushFont(MonoFont);
+
+						for (int i = 0; i < breakpoints.size(); i++)
+						{
+							auto& bp = breakpoints[i];
+
+							ImGui::TableNextRow();
+							ImGui::TableNextColumn();
+							ImGui::Text("%04X", bp.Address);
+							ImGui::TableNextColumn();
+							ImGui::TableNextColumn();
+							ImGui::TableNextColumn();
+							ImGui::Checkbox(bp.Name.c_str(), &bp.Enabled);
+							ImGui::TableNextColumn();
+							if (ImGui::SmallButton((string("[x]##") + bp.Name).c_str())) // TODO: dont create new strings in the render loop
+							{
+								RemoveBreakpoint(bp.Address, BreakpointType::None, true);
+							}
+						}
+
+						for (int i = 0; i < readBreakpoints.size(); i++)
+						{
+							auto& bp = readBreakpoints[i];
+							ImGui::TableNextRow();
+							ImGui::TableNextColumn();
+							ImGui::Text("%04X", bp.Address);
+							ImGui::TableNextColumn();
+							ImGui::Text("R");
+							ImGui::TableNextColumn();
+							ImGui::TableNextColumn();
+							ImGui::Checkbox(bp.Name.c_str(), &bp.Enabled);
+							ImGui::TableNextColumn();
+							if (ImGui::SmallButton((string("[x]##") + bp.Name).c_str()))
+							{
+								RemoveBreakpoint(bp.Address, bp.Type);
+							}
+						}
+
+						for (int i = 0; i < writeBreakpoints.size(); i++)
+						{
+							auto& bp = writeBreakpoints[i];
+							ImGui::TableNextRow();
+							ImGui::TableNextColumn();
+							ImGui::Text("%04X", bp.Address);
+							ImGui::TableNextColumn();
+							ImGui::Text("W");
+							ImGui::TableNextColumn();
+							ImGui::Text("%02Xh%s", bp.Value, bp.ValueIsMask ? " (mask)" : "");
+							ImGui::TableNextColumn();
+							ImGui::Checkbox(bp.Name.c_str(), &bp.Enabled);
+							ImGui::TableNextColumn();
+							if (ImGui::SmallButton((string("[x]##") + bp.Name).c_str()))
+							{
+								RemoveBreakpoint(bp.Address, bp.Type);
+							}
+						}
+
+						ImGui::PopFont();
 
 						ImGui::EndTable();
 					}
@@ -738,6 +824,20 @@ void GemDebugger::LayoutWidgets()
 			GMsgPad.Reset = true;
 		}
 
+		ImGui::SameLine();
+		if (ImGui::Button("Save"))
+		{
+			core->GetMMU()->SaveGame();
+			LOG_CONS("Game saved");
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button("Screenshot"))
+		{
+			CaptureScreenshot("");
+		}
+
+		ImGui::SameLine();
 		ImGui::Text("FPS: %.1fHz", ImGui::GetIO().Framerate);
 
 		ImGui::End();
@@ -752,8 +852,8 @@ void GemDebugger::LayoutWidgets()
 
 void GemDebugger::LayoutGPUVisuals()
 {
-	static ImVec2 uv_min = ImVec2(0.0f, 1.0f);                 // Top-left
-	static ImVec2 uv_max = ImVec2(1.0f, 0.0f);                 // Lower-right
+	static ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 // Top-left
+	static ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 // Lower-right
 	static ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);   // No tint
 	static ImVec4 border_col = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white
 	static int scale = 3;
@@ -763,11 +863,23 @@ void GemDebugger::LayoutGPUVisuals()
 	ImGui::RadioButton("Sprites", &viz_option, 1); ImGui::SameLine();
 	ImGui::RadioButton("Palettes", &viz_option, 2);
 
+	ImGui::Separator();
+
+	auto& gpu = *core->GetGPU();
+
 	if (viz_option == 0)
 	{
-		core->GetGPU()->RenderTilesViz(tileBuffers, tileAttrs);
+		static int tile_set_option = -1;
 
-		if (ImGui::BeginTable("TilesTable", 8, ImGuiTableFlags_None))
+		ImGui::RadioButton("Active", &tile_set_option, -1);
+		ImGui::SameLine();
+		ImGui::RadioButton("Set 1", &tile_set_option, 0);
+		ImGui::SameLine();
+		ImGui::RadioButton("Set 2", &tile_set_option, 1);
+
+		gpu.RenderTilesViz(tile_set_option, tileBuffers, tileAttrs, tileNumbers);
+
+		if (ImGui::BeginTable("TilesTable", 8, ImGuiTableFlags_ScrollY, ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 28)))
 		{
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
@@ -778,7 +890,7 @@ void GemDebugger::LayoutGPUVisuals()
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 
-			for (int row = 0; row < 16; row++)
+			for (int row = 0; row < 32; row++)
 			{
 				ImGui::TableNextRow();
 
@@ -804,44 +916,57 @@ void GemDebugger::LayoutGPUVisuals()
 						auto& attr = tileAttrs[idx];
 
 						ImGui::BeginTooltip();
-						ImGui::PushFont(MonoFont);
-						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-						ImGui::Text("Bank: %d", attr.VRamBank);
-						ImGui::Text("Palette: %d", attr.Palette);
-						ImGui::Text("Priority: %d", attr.PriorityOverSprites);
-						ImGui::Text("HFlip: %d", attr.HorizontalFlip);
-						ImGui::Text("VFlip: %d", attr.VerticalFlip);
-						ImGui::PopTextWrapPos();
-						ImGui::PopFont();
+						if (ImGui::BeginTable("TileToolTip", 2))
+						{
+							ImGui::TableNextRow();
+							ImGui::TableNextColumn();
+							ImGui::Image((ImTextureID)(intptr_t)uploader.TextureId(), ImVec2(8 * scale * 2, 8 * scale * 2), uv_min, uv_max, tint_col, border_col);
+
+							ImGui::TableNextColumn();
+							ImGui::PushFont(MonoFont);
+							ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+							ImGui::Text("Address: %04X", tileNumbers[idx]);
+							ImGui::Text("Bank: %d", attr.VRAMBank);
+							ImGui::Text("Palette: %d", attr.Palette);
+							ImGui::Text("Priority: %d", attr.PriorityOverSprites);
+							ImGui::Text("HFlip: %d", attr.HorizontalFlip);
+							ImGui::Text("VFlip: %d", attr.VerticalFlip);
+							ImGui::PopTextWrapPos();
+							ImGui::PopFont();
+							ImGui::EndTable();
+						}
 						ImGui::EndTooltip();
 					}
 				}
 			}
 
-			ImGui::EndTable();
+			ImGui::EndTable();	
 		}
 	}
 	else if (viz_option == 1)
 	{
-		core->GetGPU()->RenderSpritesViz(spriteBuffers, spriteInfos);
+		gpu.RenderSpritesViz(spriteBuffers, spriteInfos);
 
-		if (ImGui::BeginTable("SpritesTable", 5, ImGuiTableFlags_None))
+		if (ImGui::BeginTable("SpritesTable", 8, ImGuiTableFlags_None))
 		{
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 
-			for (int row = 0; row < 8; row++)
+			for (int row = 0; row < 5; row++)
 			{
 				ImGui::TableNextRow();
 
-				for (int col = 0; col < 5; col++)
+				for (int col = 0; col < 8; col++)
 				{
 					ImGui::TableNextColumn();
 
-					int idx = row * 5 + col;
+					int idx = row * 8 + col;
 
 					auto& uploader = spritePxUploaders[idx];
 					if (!uploader.IsInitialized())
@@ -860,14 +985,23 @@ void GemDebugger::LayoutGPUVisuals()
 						auto& sprite = spriteInfos[idx];
 
 						ImGui::BeginTooltip();
-						ImGui::PushFont(MonoFont);
-						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-						ImGui::Text("(%3d,%3d)", sprite.XPos, sprite.YPos);
-						ImGui::Text("Tile: %02Xh", sprite.Tile);
-						ImGui::Text("HFlip: %d", sprite.HorizontalFlip);
-						ImGui::Text("VFlip: %d", sprite.VerticalFlip);
-						ImGui::PopTextWrapPos();
-						ImGui::PopFont();
+						if (ImGui::BeginTable("SpriteToolTip", 2))
+						{
+							ImGui::TableNextRow();
+							ImGui::TableNextColumn();
+							ImGui::Image((ImTextureID)(intptr_t)uploader.TextureId(), ImVec2(8 * scale * 2, 16 * scale * 2), uv_min, uv_max, tint_col, border_col);
+
+							ImGui::TableNextColumn();
+							ImGui::PushFont(MonoFont);
+							ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+							ImGui::Text("(%3d,%3d)", sprite.XPos, sprite.YPos);
+							ImGui::Text("Tile: %02Xh", sprite.Tile);
+							ImGui::Text("HFlip: %d", sprite.HorizontalFlip);
+							ImGui::Text("VFlip: %d", sprite.VerticalFlip);
+							ImGui::PopTextWrapPos();
+							ImGui::PopFont();
+							ImGui::EndTable();
+						}
 						ImGui::EndTooltip();
 					}
 				}
@@ -878,20 +1012,25 @@ void GemDebugger::LayoutGPUVisuals()
 	}
 	else if (viz_option == 2)
 	{
-		core->GetGPU()->RenderPalettesViz(paletteBuffers, paletteEntries);
+		gpu.RenderPalettesViz(paletteBuffers, paletteEntries);
 
-		if (ImGui::BeginTable("PaletteTable", 4, ImGuiTableFlags_None))
+		ImGui::Text("Background Palette");
+		if (ImGui::BeginTable("BGPaletteTable", 8, ImGuiTableFlags_None))
 		{
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
 
-			for (int row = 0; row < 16; row++)
+			for (int row = 0; row < 4; row++)
 			{
 				ImGui::TableNextRow();
 
-				for (int col = 0; col < 4; col++)
+				for (int col = 0; col < 8; col++)
 				{
 					ImGui::TableNextColumn();
 
@@ -913,7 +1052,57 @@ void GemDebugger::LayoutGPUVisuals()
 						ImGui::BeginTooltip();
 						ImGui::PushFont(MonoFont);
 						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-						ImGui::Text("%s", row < 8 ? "Background" : "Sprites");
+						ImGui::Text("Background");
+						ImGui::Text("%04Xh", paletteEntries[idx].AsWord());
+						ImGui::PopTextWrapPos();
+						ImGui::PopFont();
+						ImGui::EndTooltip();
+					}
+				}
+			}
+
+			ImGui::EndTable();
+		}
+
+		ImGui::Text("Sprites Palette");
+		if (ImGui::BeginTable("SpritesPaletteTable", 8, ImGuiTableFlags_None))
+		{
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+
+			for (int row = 0; row < 4; row++)
+			{
+				ImGui::TableNextRow();
+
+				for (int col = 0; col < 8; col++)
+				{
+					ImGui::TableNextColumn();
+
+					int idx = (row + 4) * 8 + col;
+					auto& uploader = palettePxUploaders[idx];
+					if (!uploader.IsInitialized())
+					{
+						if (!uploader.Init(&paletteBuffers[idx]))
+						{
+							assert(false);
+						}
+					}
+
+					uploader.Upload();
+					ImGui::Image((ImTextureID)(intptr_t)uploader.TextureId(), ImVec2(8 * scale, 8 * scale), uv_min, uv_max, tint_col, border_col);
+
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::BeginTooltip();
+						ImGui::PushFont(MonoFont);
+						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+						ImGui::Text("Sprites");
 						ImGui::Text("%04Xh", paletteEntries[idx].AsWord());
 						ImGui::PopTextWrapPos();
 						ImGui::PopFont();
@@ -1240,10 +1429,11 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 					console.PrintLn(" Breakpoints");
 					for (int i = 0; i < breakpoints.size(); i++)
 					{
-						if (breakpoints[i].Enabled)
-							console.PrintLn(" [%d] %04Xh", i, breakpoints[i].Addr);
+						auto& bp = breakpoints[i];
+						if (bp.Enabled)
+							console.PrintLn(" [%d] %04Xh", i, bp.Address);
 						else
-							console.PrintLn(" [%d] %04Xh (off)", i, breakpoints[i].Addr);
+							console.PrintLn(" [%d] %04Xh (off)", i, bp.Address);
 					}
 				}
 			}
@@ -1252,9 +1442,10 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 				bool found = false;
 				for (int i = 0; i < breakpoints.size(); i++)
 				{
-					if (breakpoints[i].Addr == cmd.Arg0)
+					auto& bp = breakpoints[i];
+					if (bp.Address == cmd.Arg0)
 					{
-						breakpoints[i].Enabled = cmd.Arg1 != 0;
+						bp.Enabled = cmd.Arg1 != 0;
 						found = true;
 						break;
 					}
@@ -1262,7 +1453,7 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 
 				if (!found)
 				{
-					breakpoints.push_back(Breakpoint(cmd.Arg0));
+					AddBreakpoint(Breakpoint(cmd.Arg0));
 				}
 			}
 
@@ -1273,7 +1464,8 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 		case CommandType::WriteBreakpoint:
 		{
 			bool is_read = cmd.Type == CommandType::ReadBreakpoint;
-			vector<RWBreakpoint>& bplist = is_read ? core->GetMMU()->ReadBreakpoints() : core->GetMMU()->WriteBreakpoints();
+			BreakpointType type = is_read ? BreakpointType::Read : BreakpointType::Write;
+			auto& bplist = is_read ? readBreakpoints : writeBreakpoints;
 
 			bool print_list = false;
 			if (cmd.StrArg0.empty() && cmd.StrArg1.empty())
@@ -1289,7 +1481,7 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 			}
 			else if (!cmd.StrArg0.empty() && cmd.StrArg1.empty())
 			{
-				bplist.push_back(RWBreakpoint(cmd.Arg0, 0, false, false));
+				AddBreakpoint(Breakpoint(type, cmd.Arg0, 0, false, false));
 				print_list = true;
 			}
 			else if (!cmd.StrArg0.empty() && !cmd.StrArg1.empty())
@@ -1307,7 +1499,8 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 						addr = ParseNumericString(cmd.StrArg1.substr(0, cmd.StrArg1.size() - 1));
 					else
 						addr = cmd.Arg1;
-					bplist.push_back(RWBreakpoint(cmd.Arg0, addr, true, is_mask));
+
+					AddBreakpoint(Breakpoint(type, cmd.Arg0, addr, true, is_mask));
 				}
 
 				print_list = true;
@@ -1320,11 +1513,11 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 				{
 					auto& bp = bplist[i];
 					if (bp.CheckValue && !bp.ValueIsMask)
-						console.PrintLn(" [%d] %04Xh %02Xh", i, bp.Addr, bp.Value);
+						console.PrintLn(" [%d] %04Xh %02Xh", i, bp.Address, bp.Value);
 					else if (bp.CheckValue && bp.ValueIsMask)
-						console.PrintLn(" [%d] %04Xh %02Xh (mask)", i, bp.Addr, bp.Value);
+						console.PrintLn(" [%d] %04Xh %02Xh (mask)", i, bp.Address, bp.Value);
 					else
-						console.PrintLn(" [%d] %04Xh", i, bp.Addr);
+						console.PrintLn(" [%d] %04Xh", i, bp.Address);
 				}
 			}
 
@@ -1358,77 +1551,7 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 
 		case CommandType::Screenshot:
 		{
-			filesystem::path save_path;
-
-			if (!cmd.StrArg0.empty())
-			{
-				cmd.StrArg0 = cmd.StrArg0.append(".bmp");
-				if (filesystem::exists(cmd.StrArg0))
-				{
-					LOG_CONS("File already exists");
-					break;
-				}
-
-				save_path = fs::absolute(fs::path(cmd.StrArg0));
-			}
-			else
-			{
-				long id = UnixTimestamp();
-				string file_name("screenshot-");
-				file_name.append(to_string(id));
-				file_name.append(".bmp");
-				save_path = fs::absolute(fs::path(file_name));
-			}
-
-			if (!fs::exists(save_path.parent_path()))
-			{
-				fs::create_directory(save_path.parent_path());
-			}
-
-			if (SDL_Surface* surface = SDL_CreateRGBSurface(0, GPU::LCDWidth, GPU::LCDHeight, 32, 0, 0, 0, 0))
-			{
-				const ColourBuffer& frame = core->GetGPU()->GetFrameBuffer();
-				uint8_t* pixels = (uint8_t*)surface->pixels;
-				int index;
-
-				for (int i = 0; i < frame.Count(); i++)
-				{
-					index = i * 4;
-	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-					pixels[index + 0] = frame[i].Alpha;
-					pixels[index + 1] = frame[i].Red;
-					pixels[index + 2] = frame[i].Green;
-					pixels[index + 3] = frame[i].Blue;
-	#else
-					pixels[index + 0] = frame[i].Blue;
-					pixels[index + 1] = frame[i].Green;
-					pixels[index + 2] = frame[i].Red;
-					pixels[index + 3] = frame[i].Alpha;
-	#endif
-				}
-
-				auto s = save_path.string();
-				const char* fullpath = s.c_str();
-
-				if (SDL_RWops* rwops = SDL_RWFromFile(fullpath, "wb"))
-				{
-					if (SDL_SaveBMP_RW(surface, rwops, 1) == 0)
-					{
-						console.PrintLn("Saved screenshot to %s", fullpath);
-					}
-					else
-					{
-						console.PrintLn("Failed to save screenshot bitmap. Error: %s", SDL_GetError());
-					}
-				}
-				else
-				{
-					console.PrintLn("Failed to save screenshot bitmap. Error: %s", SDL_GetError());
-				}
-
-				SDL_FreeSurface(surface);
-			}
-
+			CaptureScreenshot(cmd.StrArg0);
 			break;
 		}
 
@@ -1481,6 +1604,8 @@ void GemDebugger::HandleEvent(SDL_Event& event)
 void GemDebugger::SetCore(Gem* ptr)
 {
 	core = ptr;
+	core->GetMMU()->SetReadBreakpoints(readBreakpoints);
+	core->GetMMU()->SetWriteBreakpoints(writeBreakpoints);
 	model.SetValuesFromCore(*core);
 }
 
@@ -1516,6 +1641,191 @@ void GemDebugger::UpdateDisassembly(uint16_t addr)
 		dmsgpad.CurrentChunk = chunk;
 		dmsgpad.CurrentIndex = chunk_index;
 	}
+}
+
+bool GemDebugger::CaptureScreenshot(std::string filename)
+{
+	namespace fs = std::filesystem;
+	filesystem::path save_path;
+
+	if (!filename.empty())
+	{
+		filename = filename.append(".bmp");
+		if (filesystem::exists(filename))
+		{
+			LOG_CONS("File already exists");
+			return false;
+		}
+
+		save_path = fs::absolute(fs::path(filename));
+	}
+	else
+	{
+		long id = UnixTimestamp();
+		string file_name("screenshot-");
+		file_name.append(to_string(id));
+		file_name.append(".bmp");
+		save_path = fs::absolute(fs::path(file_name));
+	}
+
+	if (!fs::exists(save_path.parent_path()))
+	{
+		fs::create_directory(save_path.parent_path());
+	}
+
+	bool saved = false;
+
+	if (SDL_Surface* surface = SDL_CreateRGBSurface(0, GPU::LCDWidth, GPU::LCDHeight, 32, 0, 0, 0, 0))
+	{
+		const ColourBuffer& frame = core->GetGPU()->GetFrameBuffer();
+		uint8_t* pixels = (uint8_t*)surface->pixels;
+		int index;
+
+		for (int i = 0; i < frame.Count(); i++)
+		{
+			index = i * 4;
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+			pixels[index + 0] = frame[i].Alpha;
+			pixels[index + 1] = frame[i].Red;
+			pixels[index + 2] = frame[i].Green;
+			pixels[index + 3] = frame[i].Blue;
+#else
+			pixels[index + 0] = frame[i].Blue;
+			pixels[index + 1] = frame[i].Green;
+			pixels[index + 2] = frame[i].Red;
+			pixels[index + 3] = frame[i].Alpha;
+#endif
+		}
+
+		auto s = save_path.string();
+		const char* fullpath = s.c_str();
+
+		if (SDL_RWops* rwops = SDL_RWFromFile(fullpath, "wb"))
+		{
+			if (SDL_SaveBMP_RW(surface, rwops, 1) == 0)
+			{
+				LOG_CONS("Saved screenshot to %s", fullpath);
+				saved = true;
+			}
+			else
+			{
+				LOG_CONS("Failed to save screenshot bitmap. Error: %s", SDL_GetError());
+			}
+		}
+		else
+		{
+			LOG_CONS("Failed to save screenshot bitmap. Error: %s", SDL_GetError());
+		}
+
+		SDL_FreeSurface(surface);
+	}
+
+	return saved;
+}
+
+bool GemDebugger::AddBreakpoint(Breakpoint& bp)
+{
+	char* fmt;
+	vector<Breakpoint>* list_ptr;
+
+	if (bp.Type == BreakpointType::None)
+	{
+		fmt = regular_fmt;
+		list_ptr = &breakpoints;
+	}
+	else if (bp.Type == BreakpointType::Read)
+	{
+		fmt = read_fmt;
+		list_ptr = &readBreakpoints;
+	}
+	else
+	{
+		fmt = write_fmt;
+		list_ptr = &writeBreakpoints;
+	}
+
+	vector<Breakpoint>& list = *list_ptr;
+
+	bool already_exists = false;
+	for (auto& existing : list)
+	{
+		if (existing.Address == bp.Address)
+		{
+			already_exists = true;
+			break;
+		}
+	}
+	
+	if (!already_exists)
+	{
+		snprintf(id_buffer, 32, fmt, list.size());
+		bp.Name = id_buffer;
+		list.push_back(bp);
+	}
+
+	return !already_exists;
+}
+
+bool GemDebugger::RemoveBreakpoint(uint16_t address, BreakpointType type, bool unmark_dasm)
+{
+	vector<Breakpoint>* list_ptr;
+	char* fmt;
+
+	if (type == BreakpointType::None)
+	{
+		fmt = regular_fmt;
+		list_ptr = &breakpoints;
+	}
+	else if (type == BreakpointType::Read)
+	{
+		fmt = read_fmt;
+		list_ptr = &readBreakpoints;
+	}
+	else
+	{
+		fmt = write_fmt;
+		list_ptr = &writeBreakpoints;
+	}
+
+	vector<Breakpoint>& list = *list_ptr;
+	bool rewrite_names = false;
+	bool found = false;
+	Breakpoint breakpoint;
+
+	// Remove from the main list
+	for (int i = 0; i < list.size(); i++)
+	{
+		if (list[i].Address == address)
+		{
+			breakpoint = list[i];
+			list.erase(list.begin() + i);
+			rewrite_names = i < (list.size() - 1); // If last bp is removed, no need to r-calc the imgui ids
+			found = true;
+			break;
+		}
+	}
+
+	// If it's a normal breakpoint, unmark the DisassemblyEntry
+	if (unmark_dasm && currentDisassemblyChunk && breakpoint.Address != 0)
+	{
+		for (int i = 0; i < currentDisassemblyChunk->Size(); i++)
+		{
+			if (currentDisassemblyChunk->Entries[i].Address == address)
+				currentDisassemblyChunk->Entries[i].Breakpoint = false;
+		}
+	}
+
+	if (rewrite_names)
+	{
+		for (int i = 0; i < list.size(); i++)
+		{
+			static char id_buffer[32];
+			snprintf(id_buffer, 32, fmt, list.size());
+			list[i].Name = id_buffer;
+		}
+	}
+
+	return found;
 }
 
 void GemDebugger::Reset()
@@ -1616,18 +1926,18 @@ void UIEditingModel::SetValuesFromCore(Gem& core, bool registers, bool interrupt
 		LCDC_Enabled = ctrl.Enabled;
 		LCDC_WinMap = ctrl.WindowTileMapSelect;
 		LCDC_WinEnabled = ctrl.WindowEnabled;
-		LCDC_TileDataSelect = ctrl.BgWindowTileDataSelect;
-		LCDC_BGMap = ctrl.BgTileMapSelect;
+		LCDC_TileDataSelect = ctrl.BGWindowTileDataSelect;
+		LCDC_BGMap = ctrl.BGTileMapSelect;
 		LCDC_SpriteSize = ctrl.SpriteSize;
 		LCDC_SpriteEnabled = ctrl.SpriteEnabled;
-		LCDC_BGEnabled = ctrl.BgDisplay;
+		LCDC_BGEnabled = ctrl.BGDisplay;
 
 		auto& stat = core.GetGPU()->GetLCDStatus();
-		LCDS_LYCInt = stat.LycLyCoincidenceIntEnabled;
-		LCDS_OAMInt = stat.OamIntEnabled;
+		LCDS_LYCInt = stat.LYCLYCoincidenceIntEnabled;
+		LCDS_OAMInt = stat.OAMIntEnabled;
 		LCDS_VBInt = stat.VBlankIntEnabled;
 		LCDS_HBInt = stat.HBlankIntEnabled;
-		LCDS_LYEqLYC = stat.LycLyCoincidence;
+		LCDS_LYEqLYC = stat.LYCLYCoincidence;
 
 		sprintf_s((char*)LCDS_LY, 5, "%d", core.GetGPU()->GetLCDPositions().LineY);
 		sprintf_s((char*)LCDS_LYC, 5, "%d", core.GetGPU()->GetLCDPositions().LineYCompare);
@@ -1672,18 +1982,18 @@ void UIEditingModel::UpdateCore(Gem& core, bool registers, bool interrupt_info, 
 		ctrl.Enabled = LCDC_Enabled;
 		ctrl.WindowTileMapSelect = LCDC_WinMap;
 		ctrl.WindowEnabled = LCDC_WinEnabled;
-		ctrl.BgWindowTileDataSelect = LCDC_TileDataSelect;
-		ctrl.BgTileMapSelect = LCDC_BGMap;
+		ctrl.BGWindowTileDataSelect = LCDC_TileDataSelect;
+		ctrl.BGTileMapSelect = LCDC_BGMap;
 		ctrl.SpriteSize = LCDC_SpriteSize;
 		ctrl.SpriteEnabled = LCDC_SpriteEnabled;
-		ctrl.BgDisplay = LCDC_BGEnabled;
+		ctrl.BGDisplay = LCDC_BGEnabled;
 
 		auto& stat = core.GetGPU()->GetLCDStatus();
-		LCDS_LYCInt = stat.LycLyCoincidenceIntEnabled;
-		LCDS_OAMInt = stat.OamIntEnabled;
+		LCDS_LYCInt = stat.LYCLYCoincidenceIntEnabled;
+		LCDS_OAMInt = stat.OAMIntEnabled;
 		LCDS_VBInt = stat.VBlankIntEnabled;
 		LCDS_HBInt = stat.HBlankIntEnabled;
-		LCDS_LYEqLYC = stat.LycLyCoincidence;
+		LCDS_LYEqLYC = stat.LYCLYCoincidence;
 
 		int state = strtol(LCDS_Mode, nullptr, 16);
 		if (state <= 3)
