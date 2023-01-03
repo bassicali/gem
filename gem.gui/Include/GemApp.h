@@ -10,6 +10,7 @@
 #include "MsgPad.h"
 #include "GemDebugger.h"
 #include "GemConsole.h"
+#include "RewindManager.h"
 
 class GemApp
 {
@@ -45,4 +46,7 @@ class GemApp
 
 		RenderWindow* mainWindow;
 		GemDebugger debugger;
+
+		ColourBuffer rewindFrame;
+		RewindManager rewind;
 };

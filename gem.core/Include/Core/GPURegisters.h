@@ -93,6 +93,7 @@ struct ColourPalette
 		uint16_t AsWord();
 	};
 
+	ColourPalette();
 	ColourPalette(std::string name);
 
 	void WritePaletteIndex(uint8_t value);

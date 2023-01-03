@@ -15,24 +15,31 @@ class Gem
 	public:
 		Gem();
 		~Gem();
+
 		void Reset(bool bCGB);
 		void Shutdown();
 		void LoadRom(const char* file);
+		bool IsROMLoaded() const { return cart.get() != nullptr; }
+		std::shared_ptr<CartridgeReader> GetCartridgeReader() { return cart; }
+
 		bool Tick();
 		void TickUntilVBlank();
 		const uint64_t GetTickCount() const { return tickCount; }
 		const uint64_t GetFrameCount() const { return frameCount; }
-		std::shared_ptr<CartridgeReader> GetCartridgeReader() { return cart; }
-		bool IsROMLoaded() const { return cart.get() != nullptr; }
+		
 		Z80& GetCPU() { return cpu; }
 		std::shared_ptr<GPU> GetGPU() { return gpu; }
 		std::shared_ptr<APU> GetAPU() { return apu; }
 		std::shared_ptr<MMU> GetMMU() { return mmu; }
 		std::shared_ptr<Joypad> GetJoypad() { return joypad; }
+
 		void ToggleSound(bool enabled);
+
 		std::string StartTrace();
 		void EndTrace();
 		void HandleTracing(uint16_t pc, uint16_t inst);
+
+		bool IsCGB() const { return bCGB; }
 
 	private:
 		uint64_t tickCount;
@@ -49,5 +56,7 @@ class Gem
 		bool tickAPU;
 
 		std::ofstream* traceFile;
-		bool tracing;
+		bool isTracing;
+
+		friend class RewindManager;
 };

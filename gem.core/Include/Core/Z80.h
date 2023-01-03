@@ -133,4 +133,6 @@ class Z80
 
 		void ShiftRegister(int r, Direction d, ShiftType type);
 		uint8_t ShiftByte(uint8_t value, Direction d, ShiftType type);
+
+		friend class RewindManager;
 };

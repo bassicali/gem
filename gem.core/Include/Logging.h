@@ -53,53 +53,53 @@ class NoLog : public IGemLog
 #if GEM_LOGGING_LEVEL <= GLL_VERBOSE
 #define LOG_VERBOSE(FMT,...) IGemLog::GetLogger().Verbose("[VERBOSE] : " FMT,__VA_ARGS__)
 #else
-#define LOG_VERBOSE(FMT,...)
+#define LOG_VERBOSE(FMT,...) while(0)
 #endif
 
 #if GEM_LOGGING_LEVEL <= GLL_DEBUG
 #define LOG_DEBUG(FMT,...) IGemLog::GetLogger().Debug("[DEBUG] " FMT,__VA_ARGS__)
 #else
-#define LOG_DEBUG(FMT,...)
+#define LOG_DEBUG(FMT,...) while(0)
 #endif
 
 #if GEM_LOGGING_LEVEL <= GLL_INFO
 #define LOG_INFO(FMT,...) IGemLog::GetLogger().Info("[INFO] " FMT,__VA_ARGS__)
 #else
-#define LOG_INFO(FMT,...)
+#define LOG_INFO(FMT,...) while(0)
 #endif
 
 #if GEM_LOGGING_LEVEL <= GLL_WARN
 #define LOG_WARN(FMT,...) IGemLog::GetLogger().Warn("[WARN] " FMT,__VA_ARGS__)
 #else
-#define LOG_WARN(FMT,...)
+#define LOG_WARN(FMT,...) while(0)
 #endif
 
 #if GEM_LOGGING_LEVEL <= GLL_ERROR
 #define LOG_ERROR(FMT,...) IGemLog::GetLogger().Error("[ERROR] " FMT,__VA_ARGS__)
 #else
-#define LOG_ERROR(FMT,...)
+#define LOG_ERROR(FMT,...) while(0)
 #endif
 
 #if GEM_LOGGING_LEVEL <= GLL_FATAL
 #define LOG_FATAL(FMT,...) IGemLog::GetLogger().Fatal("[FATAL] " FMT,__VA_ARGS__)
 #else
-#define LOG_FATAL(FMT,...)
+#define LOG_FATAL(FMT,...) while(0)
 #endif
 
 #if GEM_LOGGING_ENABLE_VIOLATIONS
 #define LOG_VIOLATION(FMT,...) IGemLog::GetLogger().Violation("[VIOLN] " FMT,__VA_ARGS__)
 #else
-#define LOG_VIOLATION(FMT,...)
+#define LOG_VIOLATION(FMT,...) while(0)
 #endif
 
 #if GEM_LOGGING_ENABLE_DIAGNOSTIC
 #define LOG_DIAG(FMT,...) IGemLog::GetLogger().Diag("[DIAG] " FMT,__VA_ARGS__)
 #else
-#define LOG_DIAG(FMT,...)
+#define LOG_DIAG(FMT,...) while(0)
 #endif
 
 #if GEM_LOGGING_ENABLE_CONSOLE
 #define LOG_CONS(FMT,...) IGemLog::GetLogger().Console(FMT,__VA_ARGS__)
 #else
-#define LOG_CONS(FMT,...)
+#define LOG_CONS(FMT,...) while(0)
 #endif

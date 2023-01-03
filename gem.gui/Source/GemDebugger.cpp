@@ -1630,7 +1630,7 @@ void GemDebugger::UpdateDisassembly(uint16_t addr)
 			}
 		}
 
-		// TODO: new data was probably written to this memory space and now the PC doesn't line up with a opcode
+		// TODO: new data could have been written to this memory space and now the PC doesn't align to an opcode
 		assert(found);
 	}
 	else

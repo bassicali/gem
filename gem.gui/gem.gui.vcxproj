@@ -53,16 +53,16 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\gem.gui\</OutDir>
     <IntDir>$(SolutionDir)bin\Intermediate\$(Configuration)-$(Platform)\gem.gui\</IntDir>
-    <IncludePath>$(ProjectDir)Include;$(ProjectDir)..\thirdparty\imgui\Include;$(ProjectDir)..\gem.core\Include;$(ProjectDir)..\thirdparty\opengl\include;$(ProjectDir)..\thirdparty\SDL2-2.0.12\include;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\include;$(ProjectDir)..\thirdparty\IconFontCppHeaders;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)..\thirdparty\SFML-2.4.1\lib;$(ProjectDir)..\thirdparty\SDL2-2.0.12\lib\x64;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)Include;$(ProjectDir)..\thirdparty\imgui\Include;$(ProjectDir)..\gem.core\Include;$(ProjectDir)..\thirdparty\opengl\include;$(ProjectDir)..\thirdparty\SDL2-2.0.12\include;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\include;$(ProjectDir)..\thirdparty\IconFontCppHeaders;$(ProjectDir)..\thirdparty\ffmpeg\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)..\thirdparty\SFML-2.4.1\lib;$(ProjectDir)..\thirdparty\SDL2-2.0.12\lib\x64;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\lib\x64;$(ProjectDir)..\thirdparty\ffmpeg\lib;$(LibraryPath)</LibraryPath>
     <TargetName>gem</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\gem.gui\</OutDir>
     <IntDir>$(SolutionDir)bin\Intermediate\$(Configuration)-$(Platform)\gem.gui\</IntDir>
-    <IncludePath>$(ProjectDir)Include;$(ProjectDir)..\thirdparty\imgui\Include;$(ProjectDir)..\gem.core\Include;$(ProjectDir)..\thirdparty\opengl\include;$(ProjectDir)..\thirdparty\SDL2-2.0.12\include;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\include;$(ProjectDir)..\thirdparty\IconFontCppHeaders;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)..\thirdparty\SFML-2.4.1\lib;$(ProjectDir)..\thirdparty\SDL2-2.0.12\lib\x64;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)Include;$(ProjectDir)..\thirdparty\imgui\Include;$(ProjectDir)..\gem.core\Include;$(ProjectDir)..\thirdparty\opengl\include;$(ProjectDir)..\thirdparty\SDL2-2.0.12\include;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\include;$(ProjectDir)..\thirdparty\IconFontCppHeaders;$(ProjectDir)..\thirdparty\ffmpeg\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)..\thirdparty\SFML-2.4.1\lib;$(ProjectDir)..\thirdparty\SDL2-2.0.12\lib\x64;$(ProjectDir)..\thirdparty\SDL2_ttf-2.0.15\lib\x64;$(ProjectDir)..\thirdparty\ffmpeg\lib;$(LibraryPath)</LibraryPath>
     <TargetName>gem</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -79,7 +79,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;SDL2.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;SDL2.lib;SDL2_ttf.lib;avcodec.lib;avutil.lib;cabinet.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <StackReserveSize>
       </StackReserveSize>
     </Link>
@@ -125,6 +125,7 @@
     <ClCompile Include="Source\OpenGL\PixelUploader.cpp" />
     <ClCompile Include="Source\RenderWindow.cpp" />
     <ClCompile Include="Source\Main.cpp" />
+    <ClCompile Include="Source\RewindManager.cpp" />
     <ClCompile Include="Source\Util.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -153,10 +154,12 @@
     <ClInclude Include="Include\OpenGL\Common.h" />
     <ClInclude Include="Include\OpenGL\PixelUploader.h" />
     <ClInclude Include="Include\RenderWindow.h" />
+    <ClInclude Include="Include\RewindManager.h" />
     <ClInclude Include="Include\Util.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="cpp.hint" />
     <None Include="Gem.Gui.Targets" />
   </ItemGroup>
   <ItemGroup>

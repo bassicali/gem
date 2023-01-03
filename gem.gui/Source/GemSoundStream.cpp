@@ -10,7 +10,9 @@
 using namespace std;
 
 GemSoundStream::GemSoundStream()
-	: playing(false), initialized(false), device(0)
+	: playing(false)
+	, initialized(false)
+	, device(0)
 {
 }
 

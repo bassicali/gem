@@ -2,6 +2,8 @@
 #pragma once
 
 #include <exception>
+#include <algorithm>
+#include <iterator>
 
 #define _DARRAY_INITIAL_ELEM_CAPACITY 2
 
@@ -134,6 +136,59 @@ public:
 			throw std::exception("Could not allocate memory for DArray");
 	}
 
+	void Free()
+	{
+		if (data == nullptr)
+			throw std::exception("No memory allocated yet");
+
+		delete[] data;
+		data = nullptr;
+		count = 0;
+		capacity = 0;
+	}
+
+	bool SetCapacity(uint32_t new_capacity)
+	{
+		if (new_capacity > capacity)
+		{
+			T* new_ptr = new T[new_capacity];
+
+			memcpy(new_ptr, data, capacity * sizeof(T));
+			delete[] data;
+
+			data = new_ptr;
+			capacity = new_capacity;
+
+			return true;
+		}
+		else if (new_capacity < capacity)
+		{
+			T* new_ptr = new T[new_capacity];
+
+			memcpy(new_ptr, data, new_capacity * sizeof(T));
+			delete[] data;
+
+			count = min(count, new_capacity);
+			data = new_ptr;
+			capacity = new_capacity;
+
+			return true;
+		}
+
+		return false;
+	}
+
+	bool Grow(uint32_t additional_capacity)
+	{
+		return SetCapacity(capacity + additional_capacity);
+	}
+
+	// Reduce size of allocation while potentially also discarding elements;
+	bool Shrink(uint32_t remove_capacity)
+	{
+		return SetCapacity(capacity - remove_capacity);
+	}
+
 	void PushBack(T value)
 	{
 		if (data == nullptr)
@@ -141,26 +196,22 @@ public:
 
 		if (count >= capacity)
 		{
-			T* new_ptr = new T[2 * capacity];
-			memcpy(new_ptr, data, capacity * sizeof(T));
-			delete [] data;
-
-			data = new_ptr;
-			capacity *= 2;
+			Grow(2);
 		}
 
 		data[count++] = value;
 	}
 
-	void Truncate(uint32_t remainder)
+	// Discard elements (i.e. Count() returns new_count from now on)
+	void Truncate(uint32_t new_count)
 	{
 		if (data == nullptr)
 			throw std::exception("No memory allocated");
 
-		if (remainder > capacity)
+		if (new_count > capacity)
 			throw std::exception("Allocation is smaller than truncation size");
 
-		count = remainder;
+		count = new_count;
 	}
 
 	void Fill(const T& value)
@@ -177,6 +228,7 @@ public:
 	bool const IsAllocated() const { return data != nullptr; }
 	bool const IsIndexValid(uint32_t index) const { return index >= 0 && index < count; }
 	const uint32_t Count() const { return count; }
+	const void SetCount(int new_count) { count = new_count; }
 	const uint32_t Capacity() const { return capacity; }
 	const uint32_t Size() const { return capacity * sizeof(T); }
 	const T* Ptr() const { return data; }
@@ -187,3 +239,5 @@ protected:
 	uint32_t capacity;
 	T* data;
 };
+
+typedef DArray<uint8_t> DataBuffer;

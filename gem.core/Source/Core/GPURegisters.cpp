@@ -172,6 +172,11 @@ const GemColour& MonochromePalette::GetColour(uint8_t colour_number)
 /// Colour Palette ///
 //////////////////////
 
+ColourPalette::ColourPalette()
+{
+	Reset();
+}
+
 ColourPalette::ColourPalette(string name)
 	: Name(name)
 {
