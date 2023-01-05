@@ -262,6 +262,17 @@ const GemColour& ColourPalette::GetColour(int palette, int colour_number)
 	return Data[index].Colour;
 }
 
+ColourPalette& ColourPalette::operator=(const ColourPalette& other)
+{
+	Name = other.Name;
+	PaletteIndex = other.PaletteIndex;
+	IndexAutoIncrement = other.IndexAutoIncrement;
+	PaletteIndexRegisterByte = other.PaletteIndexRegisterByte;
+	memcpy(Data, other.Data, 32 * sizeof(PaletteEntry));
+	return *this;
+}
+
+
 //////////////////////////
 /// CGB Tile Attribute ///
 //////////////////////////

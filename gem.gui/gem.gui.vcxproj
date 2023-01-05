@@ -144,6 +144,7 @@
     <ClInclude Include="..\thirdparty\imgui\Include\imstb_textedit.h" />
     <ClInclude Include="..\thirdparty\imgui\Include\imstb_truetype.h" />
     <ClInclude Include="Include\AppLog.h" />
+    <ClInclude Include="Include\CircularList.h" />
     <ClInclude Include="Include\FontGlyphCache.h" />
     <ClInclude Include="Include\GemApp.h" />
     <ClInclude Include="Include\GemConfig.h" />

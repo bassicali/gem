@@ -82,6 +82,11 @@ int GemSoundStream::GetQueuedSampleCount()
 	return size / sizeof(float);
 }
 
+void GemSoundStream::ClearQueue()
+{
+	SDL_ClearQueuedAudio(device);
+}
+
 void GemSoundStream::PushAudioData(const DArray<float>& buffer)
 {
 	if (SDL_QueueAudio(device,

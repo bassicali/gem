@@ -2,10 +2,12 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
+#include <optional>
+
 #include <windows.h>
 #include <compressapi.h>
 
-#include "DArray.h"
 #include "Colour.h"
 #include "Core/MMU.h"
 #include "Core/CartridgeReader.h"
@@ -15,9 +17,42 @@ class AVCodecContext;
 class AVFrame;
 class AVPacket;
 
+template <class TPtr>
+struct MovablePointer
+{
+	TPtr* Ptr;
+
+	MovablePointer()
+		: Ptr(nullptr)
+	{
+	}
+
+	MovablePointer(const TPtr* p)
+	{
+		Ptr = p;
+	}
+
+	MovablePointer(MovablePointer<TPtr>&& other)
+	{
+		Ptr = other.Ptr;
+		other.Ptr = nullptr;
+	}
+
+	MovablePointer<TPtr>& operator=(MovablePointer<TPtr>&& other)
+	{
+		Ptr = other.Ptr;
+		other.Ptr = nullptr;
+	}
+};
+
 struct RewindSnapshot
 {
 	int Size();
+
+	//void RewindSnapshot::MoveTo(RewindSnapshot& other);
+
+	RewindSnapshot();
+	~RewindSnapshot();
 
 	bool						Gem_bCGB;
 
@@ -44,7 +79,7 @@ struct RewindSnapshot
 	bool						IRCtl_JoypadRequested;
 
 	// MMU
-	DataBuffer					MMU_CompressedWRAM;
+	std::vector<uint8_t>		MMU_CompressedWRAM;
 	bool						MMU_bCGB;
 	uint8_t						MMU_hram[128];
 
@@ -62,7 +97,7 @@ struct RewindSnapshot
 	int							MBC_dayCtr;
 	tm							MBC_lastLatchedTime;
 	bool						MBC_daysOverflowed;
-	DataBuffer					MBC_CompressedExtRAM;
+	std::vector<uint8_t>		MBC_CompressedExtRAM;
 
 	// CGBRegisters
 	int							CGBReg_wramBank;
@@ -105,8 +140,8 @@ struct RewindSnapshot
 	CorrectionMode				GPU_correctionMode;
 	float						GPU_brightness;
 	uint8_t						GPU_oam[160];
-	DataBuffer					GPU_CompressedSprites;
-	DataBuffer					GPU_CompressedVRAM;
+	std::vector<uint8_t>		GPU_CompressedSprites;
+	std::vector<uint8_t>		GPU_CompressedVRAM;
 
 	AVPacket*					GPU_CompressedFramePacket;
 
@@ -129,56 +164,58 @@ public:
 	bool InitVideoCodec();
 	void Shutdown();
 
-	bool StartRecording();
+	bool IsInitialized() const { return initialized; }
+
 	void RecordSnapshot();
-	void StopRecording();
-	bool IsRecording() const { return isRecording; }
 	void ClearBuffer();
 
 	bool StartPlayback();
-	void ApplyCurrentSnapshot();
+	void ApplyCurrentPlaybackSnapshot();
 	void GetCurrentPlaybackFrame(ColourBuffer& framebuffer);
 	bool StopPlayback(bool continueFromStart);
 	bool IsPlaying() const { return isPlaying; }
-	void SetBufferSize(float durationSeconds);
 
 	const RewindSnapshot& SavePoint() const { return savePoint; }
 
 private:
 	
-	void ApplySnapshot(RewindSnapshot& snapshot);
-	RewindSnapshot GetSnapshot();
+	void ApplySnapshot(const RewindSnapshot& snapshot);
+	void GetSnapshot(RewindSnapshot& snapshot);
 
-	bool AddToBuffer(const RewindSnapshot& snapshot);
-	bool CompressData(const uint8_t* data, int len, DataBuffer& output_buffer);
-	bool DecompressData(const uint8_t* data, int len, DataBuffer& output_buffer);
+	bool CompressData(const uint8_t* data, int len, std::vector<uint8_t>& output_buffer);
+	bool DecompressData(const uint8_t* data, int len, std::vector<uint8_t>& output_buffer);
 
 	bool EncodeVideoFrame(const ColourBuffer& framebuffer, AVPacket*& output_packet);
 	bool DecodeVideoFrame(const AVPacket* packet, ColourBuffer& output_buffer);
+
+	int DecrementBufferIndex(int x);
+
+	bool initialized = false;
 
 	Gem* core;
 
 	COMPRESSOR_HANDLE compressor = nullptr;
 	DECOMPRESSOR_HANDLE decompressor = nullptr;
 
-	bool isRecording = false;
-	bool isPlaying = false;
-	int idxBuffPlay = 0;
-
 	// Circular buffer
-	int idxBuffStart = 0;
-	int idxBuffEnd = 0;
-	RewindBuffer buffer;
-	RewindSnapshot savePoint;
-	AVPacket* savePointPacket = nullptr;
+	int idxHead = -1;
+	int idxTail = -1;
+	int idxNext = 0;
+	int buffCount = 0;
+	std::vector<std::optional<RewindSnapshot>> buffer;
 
-	DataBuffer joinedWorkingRAM;
-	DataBuffer joinedExtRAM;
-	DataBuffer joinedVRAM;
-	DataBuffer joinedOAM;
-	DataBuffer joinedSprites;
+	bool isPlaying = false;
+	int idxPlay = 0;
+	RewindSnapshot savePoint;
+
+	std::vector<uint8_t> joinedWorkingRAM;
+	std::vector<uint8_t> joinedExtRAM;
+	std::vector<uint8_t> joinedVRAM;
+	std::vector<uint8_t> joinedOAM;
+	std::vector<uint8_t> joinedSprites;
 
 	// ffmpeg stuff
-	AVCodecContext* videoCtx = nullptr;
+	AVCodecContext* vidEncoder = nullptr;
+	AVCodecContext* vidDecoder = nullptr;
 	AVFrame* vidFrame = nullptr;
 };

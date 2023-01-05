@@ -165,6 +165,9 @@
     <ClInclude Include="Include\RewindManager.h">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="Include\CircularList.h">
+      <Filter>Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Gem.Gui.Targets" />

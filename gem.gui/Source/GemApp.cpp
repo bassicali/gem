@@ -21,6 +21,7 @@ using namespace GemUtil;
 GemApp::GemApp()
 	: mainWindow(nullptr)
 	, core()
+	, rewindFrame(GPU::LCDWidth, GPU::LCDHeight)
 {
 }
 
@@ -240,7 +241,6 @@ void GemApp::WindowLoop()
 		{
 			if (rewind.IsPlaying())
 			{
-				rewind.ApplyCurrentSnapshot();
 				rewind.GetCurrentPlaybackFrame(rewindFrame);
 				mainWindow->DrawFrame(rewindFrame);
 			}
@@ -290,6 +290,19 @@ bool GemApp::LoopWork()
 	if (!core.IsROMLoaded())
 		return false;
 
+	bool rwplaying = GMsgPad.RewindPlaying.load();
+	if (rwplaying && !rewind.IsPlaying())
+	{
+		rewind.StartPlayback();
+		sound.ClearQueue();
+		sound.Pause();
+	}
+	else if (!rwplaying && rewind.IsPlaying())
+	{
+		rewind.StopPlayback(false);
+		sound.Play();
+	}
+
 	bool emu_paused = GMsgPad.EmulationPaused.load();
 	bool present = false;
 
@@ -301,7 +314,7 @@ bool GemApp::LoopWork()
 		if (rewind.IsPlaying()) // Ignore breakpoints during rewind
 		{
 			// Restore the recorded state of the core
-			rewind.ApplyCurrentSnapshot();
+			rewind.ApplyCurrentPlaybackSnapshot();
 			present = true;
 		}
 		else if (!debugger.AnyBreakpoints())
@@ -329,7 +342,7 @@ bool GemApp::LoopWork()
 	// Only record at half the actual frame rate.
 	// Rewind doesn't need be as fast since user is just roughly looking for a place to stop.
 	static int rewind_rec_mod = 0;
-	if (present && (rewind_rec_mod++ % 2) == 0)
+	if (present && !rewind.IsPlaying() && (rewind_rec_mod++ % 2) == 0)
 	{
 		rewind.RecordSnapshot();
 		rewind_rec_mod = 0;
@@ -529,9 +542,12 @@ void GemApp::KeyPressHandler(SDL_KeyboardEvent& ev)
 	else if (ev.keysym.sym == config.StartKey)	core.GetJoypad()->Press(JoypadKey::Start);
 	else if (ev.keysym.sym == config.SelectKey) core.GetJoypad()->Press(JoypadKey::Select);
 
-	if (ev.keysym.sym == SDLK_r && !rewind.IsPlaying())
+	if (ev.keysym.sym == SDLK_r && !rewind.IsPlaying() && rewind.IsInitialized())
 	{
 		rewind.StartPlayback();
+		sound.Pause();
+		sound.ClearQueue();
+		GMsgPad.RewindPlaying.store(true);
 	}
 }
 
@@ -548,9 +564,20 @@ void GemApp::KeyReleaseHandler(SDL_KeyboardEvent& ev)
 	else if (ev.keysym.sym == config.StartKey)	core.GetJoypad()->Release(JoypadKey::Start);
 	else if (ev.keysym.sym == config.SelectKey) core.GetJoypad()->Release(JoypadKey::Select);
 
-	if (ev.keysym.sym == SDLK_t && rewind.IsPlaying())
+	if (rewind.IsPlaying())
 	{
-		rewind.StopPlayback(false);
+		if (ev.keysym.sym == SDLK_t)
+		{
+			rewind.StopPlayback(false);
+			GMsgPad.RewindPlaying.store(false);
+			sound.Play();
+		}
+		else if (ev.keysym.sym == SDLK_u)
+		{
+			rewind.StopPlayback(true);
+			GMsgPad.RewindPlaying.store(false);
+			sound.Play();
+		}
 	}
 }
 

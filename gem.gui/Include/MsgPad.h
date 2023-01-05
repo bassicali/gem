@@ -50,6 +50,8 @@ struct MsgPad
     DisassemblyMsgPad Disassemble;
 
     std::atomic_bool EmulationPaused;
+    std::atomic_bool RewindPlaying;
+
     bool Reset;
     bool Shutdown;
     std::string ROMPath;

@@ -57,7 +57,7 @@ struct UIEditingModel
 	bool LCDS_HBInt;
 	bool LCDS_LYEqLYC;
 
-	char LCDS_Mode[2] = { 0, 0 };
+	char LCDS_Mode[5] = { 0, 0, 0, 0, 0 };
 	char LCDS_LY[5] = { 0, 0, 0, 0, 0 };
 	char LCDS_LYC[5] = { 0, 0, 0, 0, 0 };
 

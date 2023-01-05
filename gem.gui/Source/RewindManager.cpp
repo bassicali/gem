@@ -1,8 +1,10 @@
 
 #include "RewindManager.h"
+#include "Logging.h"
 #include <Core/Gem.h>
 
 #include <cmath>
+#include <cassert>
 
 extern "C"
 {
@@ -14,9 +16,6 @@ extern "C"
 RewindManager::RewindManager()
 	: RewindManager(nullptr, 10.0)
 {
-	const int default_duration = 10.0;
-	int count = (int)floor(default_duration * 30.0);
-	buffer = RewindBuffer(count, true);
 }
 
 RewindManager::RewindManager(Gem* core, float durationSec)
@@ -25,40 +24,82 @@ RewindManager::RewindManager(Gem* core, float durationSec)
 	, joinedVRAM(2 * 0x2000)
 	, joinedOAM(0xA0)
 	, joinedSprites(40 * sizeof(SpriteData))
+	, buffer((int)floor(durationSec * 30.0))
 {
-	int count = (int)floor(durationSec * 30.0);
-	buffer = RewindBuffer(count, true);
 }
 
 bool RewindManager::InitVideoCodec()
 {
-	if (const AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG))
+	int error_code = 0;
+
+	bool encoder_init = false;
+	bool decoder_init = false;
+
+	if (const AVCodec* pencoder = avcodec_find_encoder(AV_CODEC_ID_MJPEG))
 	{
-		if (videoCtx = avcodec_alloc_context3(codec))
+		if (vidEncoder = avcodec_alloc_context3(pencoder))
 		{
-			videoCtx->bit_rate = 400000;
+			//vidEncoder->bit_rate = 400000;
 			/* resolution must be a multiple of two */
-			videoCtx->width = GPU::LCDWidth;
-			videoCtx->height = GPU::LCDHeight;
-			/* frames per second */
-			videoCtx->time_base = { 1, 30 };
-			videoCtx->framerate = { 30, 1 };
+			vidEncoder->width = GPU::LCDWidth;
+			vidEncoder->height = GPU::LCDHeight;
+			vidEncoder->time_base = { 1, 30 };
+			vidEncoder->framerate = { 30, 1 };
+			//vidEncoder->gop_size = 1;
+			vidEncoder->max_b_frames = 0;
+			vidEncoder->pix_fmt = AVPixelFormat::AV_PIX_FMT_YUVJ444P;
 
-			/* emit one intra frame every ten frames
-				* check frame pict_type before passing frame
-				* to encoder, if vidFrame->pict_type is AV_PICTURE_TYPE_I
-				* then gop_size is ignored and the output of encoder
-				* will always be I frame irrespective to gop_size
-				*/
-			videoCtx->gop_size = 0;
-			videoCtx->max_b_frames = 1;
-			videoCtx->pix_fmt = AV_PIX_FMT_RGBA;
+			if ((error_code = avcodec_open2(vidEncoder, pencoder, nullptr)) >= 0)
+			{
+				encoder_init = true;
+			}
+			else
+			{
+				avcodec_free_context(&vidEncoder);
 
-			return true;
+				char errstr[AV_ERROR_MAX_STRING_SIZE];
+				av_strerror(error_code, errstr, AV_ERROR_MAX_STRING_SIZE);
+				LOG_ERROR("Failed to initialize video encoder for rewind. Error: %s", errstr);
+			}
 		}
 	}
-	
-	return false;
+
+	if (!encoder_init)
+	{
+		return false;
+	}
+
+	if (const AVCodec* pdecoder = avcodec_find_decoder(AV_CODEC_ID_MJPEG))
+	{
+		if (vidDecoder = avcodec_alloc_context3(pdecoder))
+		{
+			//vidDecoder->bit_rate = 400000;
+			/* resolution must be a multiple of two */
+			vidDecoder->width = GPU::LCDWidth;
+			vidDecoder->height = GPU::LCDHeight;
+			vidDecoder->time_base = { 1, 30 };
+			vidDecoder->framerate = { 30, 1 };
+			//vidDecoder->gop_size = 1;
+			vidDecoder->max_b_frames = 0;
+			vidDecoder->pix_fmt = AVPixelFormat::AV_PIX_FMT_YUVJ444P;
+
+			if ((error_code = avcodec_open2(vidDecoder, pdecoder, nullptr)) >= 0)
+			{
+				decoder_init = true;
+			}
+			else
+			{
+				avcodec_free_context(&vidDecoder);
+
+				char errstr[AV_ERROR_MAX_STRING_SIZE];
+				av_strerror(error_code, errstr, AV_ERROR_MAX_STRING_SIZE);
+				LOG_ERROR("Failed to initialize video decoder for rewind. Error: %s", errstr);
+			}
+		}
+	}
+
+	initialized = encoder_init && decoder_init;
+	return initialized;
 }
 
 void RewindManager::SetCore(Gem* ptr)
@@ -73,18 +114,11 @@ RewindManager::~RewindManager()
 
 void RewindManager::Shutdown()
 {
-	for (int i = 0; i < buffer.Count(); i++)
-	{
-		buffer[i].GPU_CompressedSprites.Free();
-		buffer[i].GPU_CompressedVRAM.Free();
-		buffer[i].MBC_CompressedExtRAM.Free();
-		buffer[i].MMU_CompressedWRAM.Free();
-		av_packet_free(&buffer[i].GPU_CompressedFramePacket);
-	}
+	buffer.clear();
 
-	if (videoCtx)
+	if (vidEncoder)
 	{
-		avcodec_free_context(&videoCtx);
+		avcodec_free_context(&vidEncoder);
 	}
 
 	if (vidFrame)
@@ -103,27 +137,55 @@ void RewindManager::Shutdown()
 	}
 }
 
-bool RewindManager::StartRecording()
-{
-	isRecording == true;
-	return true;
-}
-
 void RewindManager::RecordSnapshot()
 {
-	if (isPlaying)
+	if (isPlaying || !initialized)
 	{
 		return;
 	}
 
-	auto snapshot = GetSnapshot();
-	AddToBuffer(snapshot);
+	// If the spot is full erase/destroy it and create a new one
+	// TODO: consider recycling the snapshot instead
+	if (buffer[idxNext])
+		buffer[idxNext].reset();
+
+	buffer[idxNext] = RewindSnapshot();
+	GetSnapshot(*buffer[idxNext]);
+
+	assert(buffCount <= buffer.size());
+	assert((buffCount == buffer.size()) == (idxHead > idxTail || (idxHead == 0 && idxTail == buffer.size()-1)));
+
+	if (buffCount == 0)
+	{
+		idxHead = 0;
+		idxTail = 0;
+		idxNext = 1;
+		buffCount++;
+	}
+	else if (buffCount == 1)
+	{
+		idxTail = 1;
+		idxNext = 2;
+		buffCount++;
+	}
+	else if (buffCount < buffer.size())
+	{
+		idxTail = (idxTail + 1) % buffer.size();
+		idxNext = (idxNext + 1) % buffer.size();
+		buffCount++;
+	}
+	else // The buffer is full
+	{
+		assert(buffer.size() == buffCount);
+
+		idxTail = (idxTail + 1) % buffCount;
+		idxHead = (idxHead + 1) % buffCount;
+		idxNext = idxHead;
+	}
 }
 
-RewindSnapshot RewindManager::GetSnapshot()
+void RewindManager::GetSnapshot(RewindSnapshot& snapshot)
 {
-	RewindSnapshot snapshot;
-
 	snapshot.Gem_bCGB = core->bCGB;
 
 	// Z80 state
@@ -162,22 +224,13 @@ RewindSnapshot RewindManager::GetSnapshot()
 		snapshot.MMU_hram[i] = mmu->hram[i];
 	
 
-	if (!joinedWorkingRAM.IsAllocated())
-	{
-		joinedWorkingRAM.Allocate();
-		joinedWorkingRAM.Reserve();
-	}
-
 	for (int i = 0; i < 8; i++)
 	{
-		memcpy(joinedWorkingRAM.Ptr() + 0x1000 * i, mmu->wramBanks[i].Ptr(), mmu->wramBanks[i].Size());
+		memcpy(joinedWorkingRAM.data() + 0x1000 * i, mmu->wramBanks[i].Ptr(), mmu->wramBanks[i].Size());
 	}
 
-	snapshot.MMU_CompressedWRAM = DataBuffer(0x1000);
-	snapshot.MMU_CompressedWRAM.Allocate();
-	snapshot.MMU_CompressedWRAM.Reserve();
-
-	CompressData(joinedWorkingRAM.Ptr(), joinedWorkingRAM.Size(), snapshot.MMU_CompressedWRAM);
+	snapshot.MMU_CompressedWRAM = std::vector<uint8_t>(0x1000);
+	CompressData(joinedWorkingRAM.data(), joinedWorkingRAM.size(), snapshot.MMU_CompressedWRAM);
 
 	// MBC
 	MBC& mbc = core->mmu->mbc;
@@ -195,22 +248,13 @@ RewindSnapshot RewindManager::GetSnapshot()
 	snapshot.MBC_lastLatchedTime = mbc.lastLatchedTime;
 	snapshot.MBC_daysOverflowed = mbc.daysOverflowed;
 
-	if (!joinedExtRAM.IsAllocated())
-	{
-		joinedExtRAM.Allocate();
-		joinedExtRAM.Reserve();
-	}
-
 	for (int i = 0; i < 4; i++)
 	{
-		memcpy(joinedExtRAM.Ptr() + MBC::RAMBankSize * i, mbc.extRAMBanks[i].Ptr(), mbc.extRAMBanks[i].Size());
+		memcpy(joinedExtRAM.data() + MBC::RAMBankSize * i, mbc.extRAMBanks[i].Ptr(), mbc.extRAMBanks[i].Size());
 	}
 
-	snapshot.MBC_CompressedExtRAM = DataBuffer(0x1000);
-	snapshot.MBC_CompressedExtRAM.Allocate();
-	snapshot.MBC_CompressedExtRAM.Reserve();
-
-	CompressData(joinedExtRAM.Ptr(), joinedExtRAM.Size(), snapshot.MBC_CompressedExtRAM);
+	snapshot.MBC_CompressedExtRAM = std::vector<uint8_t>(0x1000);
+	CompressData(joinedExtRAM.data(), joinedExtRAM.size(), snapshot.MBC_CompressedExtRAM);
 
 	// CGBRegisters
 	CGBRegisters& cgb = core->mmu->cgb_state;
@@ -261,16 +305,12 @@ RewindSnapshot RewindManager::GetSnapshot()
 	snapshot.GPU_correctionMode = gpu->correctionMode;
 	snapshot.GPU_brightness = gpu->brightness;
 
+
+
 	///////
 	// VRAM
-	if (!joinedVRAM.IsAllocated())
-	{
-		joinedVRAM.Allocate();
-		joinedVRAM.Reserve();
-	}
-
-	memcpy(joinedVRAM.Ptr(), gpu->vram.Ptr(), gpu->vram.Size());
-	CompressData(joinedVRAM.Ptr(), joinedVRAM.Size(), snapshot.GPU_CompressedVRAM);
+	memcpy(joinedVRAM.data(), gpu->vram.Ptr(), gpu->vram.Size());
+	CompressData(joinedVRAM.data(), joinedVRAM.size(), snapshot.GPU_CompressedVRAM);
 
 	///////
 	// OAM
@@ -279,35 +319,35 @@ RewindSnapshot RewindManager::GetSnapshot()
 
 	///////
 	// Sprites
-	if (!joinedSprites.IsAllocated())
+	for (int i = 0; i < GPU::NumSprites; i++)
 	{
-		joinedSprites.Allocate();
-		joinedSprites.Reserve();
-	}
+		auto* src = joinedSprites.data() + i * sizeof(SpriteData);
+		auto* dst = &(gpu->sprites[i]);
+		auto  cnt = GPU::NumSprites * sizeof(SpriteData);
 
-	for (int i = 0; i < gpu->NumSprites; i++)
-	{
-		memcpy(joinedSprites.Ptr() + i * sizeof(SpriteData), 
+		memcpy(joinedSprites.data() + i * sizeof(SpriteData), 
 				&(gpu->sprites[i]), 
-				gpu->NumSprites * sizeof(SpriteData));
+				sizeof(SpriteData));
 	}
 
-	CompressData(joinedSprites.Ptr(), joinedSprites.Size(), snapshot.GPU_CompressedSprites);
+	CompressData(joinedSprites.data(), joinedSprites.size(), snapshot.GPU_CompressedSprites);
 
 	AVPacket* packet = nullptr;
 	EncodeVideoFrame(core->gpu->GetFrameBuffer(), packet);
 	snapshot.GPU_CompressedFramePacket = packet;
-
-	return snapshot;
 }
 
-void RewindManager::ApplyCurrentSnapshot()
+void RewindManager::ApplyCurrentPlaybackSnapshot()
 {
-	RewindSnapshot& snapshot = buffer[idxBuffPlay];
-	ApplySnapshot(snapshot);
+	if (!initialized)
+	{
+		return;
+	}
+
+	ApplySnapshot(buffer[idxPlay].value());
 }
 
-void RewindManager::ApplySnapshot(RewindSnapshot& snapshot)
+void RewindManager::ApplySnapshot(const RewindSnapshot& snapshot)
 {
 	core->bCGB = snapshot.Gem_bCGB;
 
@@ -347,11 +387,11 @@ void RewindManager::ApplySnapshot(RewindSnapshot& snapshot)
 	for (int i = 0; i < 128; i++)
 		core->mmu->hram[i] = snapshot.MMU_hram[i];
 
-	DecompressData(snapshot.MMU_CompressedWRAM.Ptr(), snapshot.MMU_CompressedWRAM.Count(), joinedWorkingRAM);
+	DecompressData(snapshot.MMU_CompressedWRAM.data(), snapshot.MMU_CompressedWRAM.size(), joinedWorkingRAM);
 
 	for (int i = 0; i < 8; i++)
 	{
-		memcpy(mmu->wramBanks[i].Ptr(), joinedWorkingRAM.Ptr() + 0x1000 * i, mmu->wramBanks[i].Capacity());
+		memcpy(mmu->wramBanks[i].Ptr(), joinedWorkingRAM.data() + 0x1000 * i, mmu->wramBanks[i].Capacity());
 	}
 
 	// MBC
@@ -370,11 +410,11 @@ void RewindManager::ApplySnapshot(RewindSnapshot& snapshot)
 	mbc.lastLatchedTime = snapshot.MBC_lastLatchedTime;
 	mbc.daysOverflowed = snapshot.MBC_daysOverflowed;
 
-	DecompressData(snapshot.MBC_CompressedExtRAM.Ptr(), snapshot.MBC_CompressedExtRAM.Count(), joinedExtRAM);
+	DecompressData(snapshot.MBC_CompressedExtRAM.data(), snapshot.MBC_CompressedExtRAM.size(), joinedExtRAM);
 
 	for (int i = 0; i < 4; i++)
 	{
-		memcpy(mbc.extRAMBanks[i].Ptr(), joinedExtRAM.Ptr() + MBC::RAMBankSize * i, MBC::RAMBankSize);
+		memcpy(mbc.extRAMBanks[i].Ptr(), joinedExtRAM.data() + MBC::RAMBankSize * i, MBC::RAMBankSize);
 	}
 
 	// CGBRegisters
@@ -426,66 +466,88 @@ void RewindManager::ApplySnapshot(RewindSnapshot& snapshot)
 	gpu->correctionMode = snapshot.GPU_correctionMode;
 	gpu->brightness = snapshot.GPU_brightness;
 
-	DecompressData(snapshot.GPU_CompressedVRAM.Ptr(), snapshot.GPU_CompressedVRAM.Count(), joinedVRAM);
-	memcpy(gpu->vram.Ptr(), joinedVRAM.Ptr(), GPU::VRAMSize);
+	DecompressData(snapshot.GPU_CompressedVRAM.data(), snapshot.GPU_CompressedVRAM.size(), joinedVRAM);
+	memcpy(gpu->vram.Ptr(), joinedVRAM.data(), GPU::VRAMSize);
 
-	DecompressData(snapshot.GPU_CompressedSprites.Ptr(), snapshot.GPU_CompressedSprites.Count(), joinedSprites);
+	DecompressData(snapshot.GPU_CompressedSprites.data(), snapshot.GPU_CompressedSprites.size(), joinedSprites);
 	for (int i = 0; i < GPU::NumSprites; i++)
 	{
-		memcpy(&(gpu->sprites[i]), 
-				joinedSprites.Ptr() + i * sizeof(SpriteData),
-				GPU::NumSprites * sizeof(SpriteData));
+		memcpy(&(gpu->sprites[i]),
+				joinedSprites.data() + i * sizeof(SpriteData),
+				sizeof(SpriteData));
 	}
-
-	// Video frame is decoded in 
-}
-
-void RewindManager::StopRecording()
-{
-	isRecording = false;
 }
 
 void RewindManager::ClearBuffer()
 {
-	idxBuffStart = idxBuffEnd = 0;
+	buffer.clear();
+}
+
+int RewindManager::DecrementBufferIndex(int x)
+{
+	if (x == idxHead)
+	{
+		return idxTail == 0 ;
+	}
+	else
+	{
+		if (x == 0)
+		{
+			if (idxHead > idxTail) // List wraps around the buffer
+				return buffer.size() - 1;
+			else
+				return 0;
+		}
+		else
+		{
+			return x - 1;
+		}
+	}
 }
 
 bool RewindManager::StartPlayback()
 {
-	if (isRecording)
+	if (isPlaying || !initialized || buffCount < 2)
 	{
 		return false;
 	}
 
-	savePoint = GetSnapshot();
-	EncodeVideoFrame(core->gpu->GetFrameBuffer(), savePointPacket);
+	GetSnapshot(savePoint);
 
-	idxBuffPlay = 0;
+	idxPlay = idxTail;
 	isPlaying = true;
 }
 
 void RewindManager::GetCurrentPlaybackFrame(ColourBuffer& framebuffer)
 {
-	if (idxBuffEnd == idxBuffStart == 0)
+	if (idxPlay == idxHead) // Reached start of buffer
 	{
 		return;
 	}
+	
+	DecodeVideoFrame(buffer[idxPlay]->GPU_CompressedFramePacket, framebuffer);
 
-	int len = idxBuffEnd > idxBuffStart
-			  ? idxBuffEnd - idxBuffStart + 1
-			  : idxBuffStart - idxBuffEnd + 1;
+	assert(buffCount <= buffer.size());
 
-	if (idxBuffPlay < len)
+	if (buffCount == buffer.size()) // Buffer is full
 	{
-		RewindSnapshot& snapshot = buffer[idxBuffPlay];
-		DecodeVideoFrame(snapshot.GPU_CompressedFramePacket, framebuffer);
-		idxBuffPlay++;
+		idxPlay = idxPlay == 0
+					  ? buffCount - 1
+					  : idxPlay - 1;
+	}
+	else
+	{
+		// Not full means the head index must be the initial value of 0 (note: idxPlay != 0 at this point)
+		assert(idxHead == 0);
+
+		// Note the first if statement, idxPlay must be > 0
+		idxPlay--;
 	}
 }
 
 bool RewindManager::StopPlayback(bool continueFromStart)
 {
-	if (isRecording || !isPlaying)
+	if (!isPlaying || !initialized)
 	{
 		return false;
 	}
@@ -496,51 +558,11 @@ bool RewindManager::StopPlayback(bool continueFromStart)
 		DecodeVideoFrame(savePoint.GPU_CompressedFramePacket, core->gpu->frameBuffer);
 	}
 
-	idxBuffPlay = 0;
+	idxPlay = 0;
 	isPlaying = false;
 }
 
-void RewindManager::SetBufferSize(float durationSeconds)
-{
-	int num_snapshots = (int)floor(durationSeconds / 30.0f);
-	buffer.SetCapacity(num_snapshots);
-}
-
-bool RewindManager::AddToBuffer(const RewindSnapshot& snapshot)
-{
-	int insert_idx;
-
-	if (idxBuffStart == idxBuffEnd == 0)
-	{
-		insert_idx = 0;
-		idxBuffEnd++;
-	}
-	else
-	{
-		idxBuffEnd = (idxBuffEnd + 1) % buffer.Capacity();
-		if (idxBuffEnd == idxBuffStart)
-		{
-			RewindSnapshot& discard = buffer[idxBuffStart];
-
-			// circled around
-			idxBuffStart = (idxBuffStart + 1) % buffer.Capacity();
-
-			discard.GPU_CompressedSprites.Free();
-			discard.GPU_CompressedVRAM.Free();
-			discard.MBC_CompressedExtRAM.Free();
-			discard.MMU_CompressedWRAM.Free();
-
-			av_packet_free(&discard.GPU_CompressedFramePacket);
-		}
-		insert_idx = idxBuffEnd;
-	}
-
-	buffer[insert_idx] = snapshot;
-
-	return false;
-}
-
-bool RewindManager::CompressData(const uint8_t* uncompressed_data, int len, DArray<uint8_t>& output_buffer)
+bool RewindManager::CompressData(const uint8_t* uncompressed_data, int len, std::vector<uint8_t>& output_buffer)
 {
 	bool successful = true;
 
@@ -552,40 +574,31 @@ bool RewindManager::CompressData(const uint8_t* uncompressed_data, int len, DArr
 	if (successful)
 	{
 		bool retry = false;
-		SIZE_T required_buffer_size;
+		SIZE_T min_buff_size;
 
-		successful = Compress(compressor, (LPCVOID)uncompressed_data, (SIZE_T)len, output_buffer.Ptr(), output_buffer.Capacity(), &required_buffer_size);
+		successful = Compress(compressor, (LPCVOID)uncompressed_data, (SIZE_T)len, output_buffer.data(), output_buffer.size(), &min_buff_size);
 
 		if (!successful)
 		{
 			if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
 			{
-				output_buffer.SetCapacity(required_buffer_size);
+				output_buffer.resize(min_buff_size);
 				retry = true;
 			}
-		}
-		else
-		{
-			output_buffer.SetCount(required_buffer_size);
 		}
 
 		if (retry)
 		{
-			successful = Compress(compressor, (LPCVOID)uncompressed_data, (SIZE_T)len, output_buffer.Ptr(), output_buffer.Capacity(), &required_buffer_size);
-			
-			if (successful)
-			{
-				output_buffer.SetCount(required_buffer_size);
-			}
+			successful = Compress(compressor, (LPCVOID)uncompressed_data, (SIZE_T)len, output_buffer.data(), output_buffer.size(), &min_buff_size);
 		}
 	}
 
 	return successful;
 }
 
-bool RewindManager::DecompressData(const uint8_t* compressed_data, int len, DataBuffer& output_buffer)
+bool RewindManager::DecompressData(const uint8_t* compressed_data, int len, std::vector<uint8_t>& output_buffer)
 {
-	bool successful = false;
+	bool successful = true;
 
 	if (!decompressor)
 	{
@@ -595,146 +608,176 @@ bool RewindManager::DecompressData(const uint8_t* compressed_data, int len, Data
 	if (successful)
 	{
 		bool retry = false;
-		SIZE_T required_buffer_size;
+		SIZE_T min_buff_size;
 
-		successful = Decompress(decompressor, (LPCVOID)compressed_data, (SIZE_T)len, output_buffer.Ptr(), output_buffer.Capacity(), &required_buffer_size);
+		successful = Decompress(decompressor, (LPCVOID)compressed_data, (SIZE_T)len, output_buffer.data(), output_buffer.size(), &min_buff_size);
 
 		if (!successful)
 		{
 			if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
 			{
-				output_buffer.SetCapacity(required_buffer_size);
+				output_buffer.resize(min_buff_size);
 				retry = true;
 			}
 		}
 
+		// If the vector is larger than required we keep the extra slack since we'll be reusing the same snapshot/vector later
+
 		if (retry)
 		{
-			successful = Decompress(decompressor, (LPCVOID)compressed_data, (SIZE_T)len, output_buffer.Ptr(), output_buffer.Capacity(), &required_buffer_size);
+			successful = Decompress(decompressor, (LPCVOID)compressed_data, (SIZE_T)len, output_buffer.data(), output_buffer.size(), &min_buff_size);
 		}
 	}
 
 	return successful;
 }
 
+
+#define CLIP(X) ( (X) > 255 ? 255 : (X) < 0 ? 0 : X)
+
+// RGB -> YUV
+#define RGB2Y(R, G, B) CLIP(( (  66 * (R) + 129 * (G) +  25 * (B) + 128) >> 8) +  16)
+#define RGB2U(R, G, B) CLIP(( ( -38 * (R) -  74 * (G) + 112 * (B) + 128) >> 8) + 128)
+#define RGB2V(R, G, B) CLIP(( ( 112 * (R) -  94 * (G) -  18 * (B) + 128) >> 8) + 128)
+
+// YUV -> RGB
+#define C(Y) ( (Y) - 16  )
+#define D(U) ( (U) - 128 )
+#define E(V) ( (V) - 128 )
+
+#define YUV2R(Y, U, V) CLIP(( 298 * C(Y)              + 409 * E(V) + 128) >> 8)
+#define YUV2G(Y, U, V) CLIP(( 298 * C(Y) - 100 * D(U) - 208 * E(V) + 128) >> 8)
+#define YUV2B(Y, U, V) CLIP(( 298 * C(Y) + 516 * D(U)              + 128) >> 8)
+
 bool RewindManager::EncodeVideoFrame(const ColourBuffer& framebuffer, AVPacket*& output_packet)
 {
+	int error_code = 0;
+
 	if (!vidFrame)
 	{
-		vidFrame = av_frame_alloc();
+		if (vidFrame = av_frame_alloc())
+		{
+			vidFrame->format = vidEncoder->pix_fmt;
+			vidFrame->width = vidEncoder->width;
+			vidFrame->height = vidEncoder->height;
+
+			if ((error_code = av_frame_get_buffer(vidFrame, 0)) < 0)
+			{
+				av_frame_free(&vidFrame);
+			}
+		}
 	}
 
 	if (vidFrame)
 	{
-		vidFrame->format = videoCtx->pix_fmt;
-		vidFrame->width = videoCtx->width;
-		vidFrame->height = videoCtx->height;
-
-		if (av_frame_make_writable(vidFrame) == 0)
+		if ((error_code = av_frame_make_writable(vidFrame)) >= 0)
 		{
 			for (int i = 0; i < framebuffer.Width; i++)
 			{
 				for (int j = 0; j < framebuffer.Height; j++)
 				{
 					GemColour px = framebuffer.GetPixel(i, j);
-					vidFrame->data[0][i * vidFrame->linesize[0] + j] = px.Red;
-					vidFrame->data[1][i * vidFrame->linesize[0] + j] = px.Green;
-					vidFrame->data[2][i * vidFrame->linesize[0] + j] = px.Blue;
-					vidFrame->data[3][i * vidFrame->linesize[0] + j] = 255;
+					vidFrame->data[0][i * vidFrame->linesize[0] + j] = RGB2Y(px.Red, px.Green, px.Blue);
+					vidFrame->data[1][i * vidFrame->linesize[0] + j] = RGB2U(px.Red, px.Green, px.Blue);
+					vidFrame->data[2][i * vidFrame->linesize[0] + j] = RGB2V(px.Red, px.Green, px.Blue);
+					//vidFrame->data[3][i * vidFrame->linesize[0] + j] = 255;
 				}
 			}
 
 			static long frame_timestamp = 0;
 			vidFrame->pts = frame_timestamp++;
 
-			if (avcodec_send_frame(videoCtx, vidFrame) == 0)
+			if ((error_code = avcodec_send_frame(vidEncoder, vidFrame)) >= 0)
 			{
-				bool failed = false;
-				int ret = 0;
 				int count = 0;
 
 				if (AVPacket* packet = av_packet_alloc())
 				{
-					while (ret >= 0) 
+					do
 					{
-						ret = avcodec_receive_packet(videoCtx, packet);
-						failed = ret < 0;
-
-						if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || ret < 0)
-						{
-							break;
-						}
-
-						output_packet = packet;
+						error_code = avcodec_receive_packet(vidEncoder, packet);
 					}
+					while (error_code == AVERROR(EAGAIN));
 
-					if (!failed)
+					if (error_code >= 0)
 					{
+						output_packet = packet;
 						return true;
 					}
 				}
 			}
 		}
 	}
+
+	char errstr[AV_ERROR_MAX_STRING_SIZE];
+	av_strerror(error_code, errstr, AV_ERROR_MAX_STRING_SIZE);
+	LOG_ERROR("Failed to encode frame. Error: %s", errstr);
 	
 	return false;
 }
 
 bool RewindManager::DecodeVideoFrame(const AVPacket* packet, ColourBuffer& output_buffer)
 {
-	if (avcodec_send_packet(videoCtx, packet) == 0)
+	int error_code = 0;
+
+	if ((error_code = avcodec_send_packet(vidDecoder, packet)) >= 0)
 	{
-		bool failed = false;
-		int ret = 0;
-		int count = 0;
-
-		if (!vidFrame)
+		do 
 		{
-			vidFrame = av_frame_alloc();
-		}
+			error_code = avcodec_receive_frame(vidDecoder, vidFrame);
+		} 
+		while (error_code == AVERROR(EAGAIN));
 
-		while (ret >= 0)
+		if (error_code >= 0)
 		{
-			ret = avcodec_receive_frame(videoCtx, vidFrame);
-			failed = ret < 0;
-
-			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || ret < 0)
-			{
-				break;
-			}
-
 			for (int i = 0; i < GPU::LCDWidth; i++)
 			{
 				for (int j = 0; j < GPU::LCDHeight; j++)
 				{
 					GemColour px;
-					px.Red = vidFrame->data[0][i * vidFrame->linesize[0] + j];
-					px.Green = vidFrame->data[1][i * vidFrame->linesize[0] + j];
-					px.Blue = vidFrame->data[2][i * vidFrame->linesize[0] + j];
+					uint8_t y = vidFrame->data[0][i * vidFrame->linesize[0] + j];
+					uint8_t u = vidFrame->data[1][i * vidFrame->linesize[1] + j];
+					uint8_t v = vidFrame->data[2][i * vidFrame->linesize[2] + j];
+
+					px.Red = YUV2R(y, u, v);
+					px.Green = YUV2G(y, u, v);
+					px.Blue = YUV2B(y, u, v);
 					px.Alpha = 255;
 					output_buffer.SetPixel(i, j, px);
 				}
 			}
-		}
 
-		if (!failed)
-		{
 			return true;
 		}
 	}
 
-	return true;
+	char errstr[AV_ERROR_MAX_STRING_SIZE];
+	av_strerror(error_code, errstr, AV_ERROR_MAX_STRING_SIZE);
+	LOG_ERROR("Failed to decode frame. Error: %s", errstr);
+
+	return false;
 }
 
 int RewindSnapshot::Size()
 {
 	int size =
 		sizeof(RewindSnapshot) 
-		- (5*sizeof(DataBuffer))
-		+ MMU_CompressedWRAM.Size()
-		+ MBC_CompressedExtRAM.Size()
-		+ GPU_CompressedVRAM.Size()
-		+ GPU_CompressedSprites.Size();
+		+ MMU_CompressedWRAM.size()
+		+ MBC_CompressedExtRAM.size()
+		+ GPU_CompressedVRAM.size()
+		+ GPU_CompressedSprites.size();
 	
 	return size;
+}
+
+RewindSnapshot::RewindSnapshot()
+	: GPU_CompressedFramePacket(nullptr)
+{
+}
+RewindSnapshot::~RewindSnapshot()
+{
+	if (GPU_CompressedFramePacket)
+	{
+		av_packet_free(&GPU_CompressedFramePacket);
+	}
 }

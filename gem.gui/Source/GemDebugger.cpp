@@ -1332,6 +1332,16 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 			GMsgPad.EmulationPaused.store(true);
 			break;
 		}
+		case CommandType::RewindPlay:
+		{
+			GMsgPad.RewindPlaying.store(true);
+			break;
+		}
+		case CommandType::RewindStop:
+		{
+			GMsgPad.RewindPlaying.store(false);
+			break;
+		}
 		case CommandType::Save:
 		{
 			shared_ptr<CartridgeReader> cart = core->GetCartridgeReader();
@@ -1941,7 +1951,7 @@ void UIEditingModel::SetValuesFromCore(Gem& core, bool registers, bool interrupt
 
 		sprintf_s((char*)LCDS_LY, 5, "%d", core.GetGPU()->GetLCDPositions().LineY);
 		sprintf_s((char*)LCDS_LYC, 5, "%d", core.GetGPU()->GetLCDPositions().LineYCompare);
-		sprintf_s((char*)LCDS_Mode, 2, "%d", core.GetGPU()->GetLCDStatus().Mode);
+		sprintf_s((char*)LCDS_Mode, 5, "%02d", core.GetGPU()->GetLCDStatus().Mode);
 	}
 }
 

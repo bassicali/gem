@@ -139,7 +139,7 @@ public:
 	void Free()
 	{
 		if (data == nullptr)
-			throw std::exception("No memory allocated yet");
+			return;
 
 		delete[] data;
 		data = nullptr;
@@ -239,5 +239,3 @@ protected:
 	uint32_t capacity;
 	T* data;
 };
-
-typedef DArray<uint8_t> DataBuffer;

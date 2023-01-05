@@ -20,6 +20,7 @@ public:
 	void Pause();
 	virtual int GetQueuedSampleCount() override;
 	virtual void PushAudioData(const DArray<float>& buffer) override;
+	void ClearQueue();
 	void Shutdown();
 	const bool IsInitialized() const { return initialized; }
 	const bool IsPlaying() const { return playing; }
