@@ -5,6 +5,7 @@
 ## Features
 - Disassembler/debugger
 - Visualizations for tiles, sprites and palette colours
+- Rewind mode
 - Levels visualizer for the 4 sound channels
 - Plot for channel 4 wave pattern
 - A command console with some commands for debugging the emulation. See table below.
@@ -23,6 +24,7 @@
 | Pause  | `pause` | Pause the emulation. |
 | Reset| `reset` | Reset emulation state as if the ROM was just loaded. |
 | Save Game  | `save` | If the ROM type has external RAM or a real-time clock, their states are saved to disk (automatically happens on shutdown too). |
+| Rewind stats  | `rwstats` | Print some rewind-mode stats to the console |
 | Exit  | `exit` | Close the emulator (can also close the console or viewport windows instead) |
 | Print Info  | `p\|print cpu\|gpu\|rom\|timers` | Print the state of one of the components to the console. |
 | Stepping  | `step \| stepn n \| vblank` | Tick the core once, `n` times or until a vblank occurs. Emulation must be paused first. |
@@ -47,6 +49,15 @@ A config file named `gem.ini` is used to persist some user settings. It's create
 | ResolutionScale | Multiply the window size by an integer to increase its size. |
 | \*Key | A keyboard key to map the Game Boy button to. See [SDL_Keycode](https://wiki.libsdl.org/SDL_Keycode). |
 | DMGPalette | A '\|' delimited list of four colours for the DMG palette (starting with white/colour 0). Each colour can be formated using `rgb(x,x,x)` or as a 24-bit hex number: `FFCFEAh`. E.g. `DMGPalette=F7FBE1h\|BAC964h\|438A5Eh\|436F8Ah` |
+
+## Rewind Mode
+To rewind game play press and hold the `R` key then release when you want to stop. Hold down the `T` key while releasing `R` to continue from the start of the rewind. 
+When enabled this feature will save a snapshot of the last N seconds of game play allowing you to rewind to a previous state. 
+
+| Config Key | Description |
+| RewindBufferDuration | How many seconds of game play to save to the rewind buffer. |
+| RewindFramesBetweenSnapshots | How many frames to skip before taking a rewind snapshot. |
+| RewindEnabled | Enable or disable the rewind feature and buffer. |
 
 ## Command Line Options
 *Note: These need to be passed in when launching gem.exe.*

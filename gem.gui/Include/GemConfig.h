@@ -38,5 +38,9 @@ struct GemConfig
 	GemColour Colour2;
 	GemColour Colour3;
 
+	bool RewindEnabled;
+	float RewindBufferDuration;
+	int RewindFramesBetweenSnapshots;
+
 	static GemConfig& Get();
 };

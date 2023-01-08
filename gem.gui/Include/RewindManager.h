@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <optional>
+#include <string>
 
 #include <windows.h>
 #include <compressapi.h>
@@ -47,7 +48,8 @@ struct MovablePointer
 
 struct RewindSnapshot
 {
-	int Size();
+	int Size() const;
+	int CompressedFrameSize() const;
 
 	//void RewindSnapshot::MoveTo(RewindSnapshot& other);
 
@@ -157,25 +159,26 @@ class RewindManager
 public:
 
 	RewindManager();
-	RewindManager(Gem* core, float durationSec);
+	RewindManager(Gem* core, int count);
 	~RewindManager();
 
 	void SetCore(Gem* core);
 	bool InitVideoCodec();
 	void Shutdown();
-
 	bool IsInitialized() const { return initialized; }
 
 	void RecordSnapshot();
 	void ClearBuffer();
+	void ResizeBuffer(int count);
+	int GetBufferSize() const { return totalBufferSize; }
 
-	bool StartPlayback();
-	void ApplyCurrentPlaybackSnapshot();
-	void GetCurrentPlaybackFrame(ColourBuffer& framebuffer);
-	bool StopPlayback(bool continueFromStart);
-	bool IsPlaying() const { return isPlaying; }
+	bool StartRewind();
+	void ApplyCurrentRewindSnapshot();
+	void GetCurrentRewindFrame(ColourBuffer& framebuffer);
+	bool StopRewind(bool continueFromStart);
+	bool IsRewinding() const { return isRewinding; }
 
-	const RewindSnapshot& SavePoint() const { return savePoint; }
+	std::string GetStatsSummary() const;
 
 private:
 	
@@ -188,9 +191,8 @@ private:
 	bool EncodeVideoFrame(const ColourBuffer& framebuffer, AVPacket*& output_packet);
 	bool DecodeVideoFrame(const AVPacket* packet, ColourBuffer& output_buffer);
 
-	int DecrementBufferIndex(int x);
-
 	bool initialized = false;
+	bool shutdown = false;
 
 	Gem* core;
 
@@ -203,15 +205,17 @@ private:
 	int idxNext = 0;
 	int buffCount = 0;
 	std::vector<std::optional<RewindSnapshot>> buffer;
+	int totalBufferSize = 0;
 
-	bool isPlaying = false;
-	int idxPlay = 0;
-	RewindSnapshot savePoint;
+	bool isRewinding = false;
+	int idxRewind = 0;
+
+	// If user wants to cancel rewind we restore this snapshot which is when they began rewinding
+	RewindSnapshot rewindUndoSnapshot;
 
 	std::vector<uint8_t> joinedWorkingRAM;
 	std::vector<uint8_t> joinedExtRAM;
 	std::vector<uint8_t> joinedVRAM;
-	std::vector<uint8_t> joinedOAM;
 	std::vector<uint8_t> joinedSprites;
 
 	// ffmpeg stuff

@@ -23,7 +23,7 @@ public:
 	void ClearQueue();
 	void Shutdown();
 	const bool IsInitialized() const { return initialized; }
-	const bool IsPlaying() const { return playing; }
+	const bool IsRewinding() const { return playing; }
 private:
 	SDL_AudioDeviceID device;
 	std::shared_ptr<APU> apu;

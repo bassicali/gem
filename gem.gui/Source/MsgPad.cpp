@@ -14,7 +14,6 @@ MsgPad::MsgPad()
 
 bool MsgPad::TogglePause()
 {
-    bool now_paused = !EmulationPaused;
-    EmulationPaused.store(now_paused);
-    return now_paused;
+    EmulationPaused = !EmulationPaused;
+    return EmulationPaused;;
 }

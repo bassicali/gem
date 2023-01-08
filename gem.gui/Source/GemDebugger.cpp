@@ -230,7 +230,7 @@ void GemDebugger::LayoutWidgets()
 	ImGui::SetNextWindowSize(ImVec2(work_size.x, main_area_height));
 	
 	static bool is_paused;
-	is_paused = GMsgPad.EmulationPaused.load();
+	is_paused = GMsgPad.EmulationPaused;
 
 	static bool update_cpu_registers, update_lcd_registers;
 	update_cpu_registers = false;
@@ -1324,22 +1324,17 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 		}
 		case CommandType::Run:
 		{
-			GMsgPad.EmulationPaused.store(false);
+			GMsgPad.EmulationPaused = false;
 			break;
 		}
 		case CommandType::Pause:
 		{
-			GMsgPad.EmulationPaused.store(true);
+			GMsgPad.EmulationPaused = true;
 			break;
 		}
-		case CommandType::RewindPlay:
+		case CommandType::RewindStats:
 		{
-			GMsgPad.RewindPlaying.store(true);
-			break;
-		}
-		case CommandType::RewindStop:
-		{
-			GMsgPad.RewindPlaying.store(false);
+			GMsgPad.PrintRewindStats = true;
 			break;
 		}
 		case CommandType::Save:
@@ -1538,7 +1533,7 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 		case CommandType::StepN:
 		case CommandType::StepUntilVBlank:
 		{
-			if (GMsgPad.EmulationPaused.load() == true)
+			if (GMsgPad.EmulationPaused)
 			{
 				//if (cmd.Type == CommandType::StepUntilVBlank)
 				//	GMsgPad.StepParams.UntilVBlank = true;

@@ -2,7 +2,6 @@
 #pragma once
 
 #include <vector>
-#include <atomic>
 #include <string>
 #include <optional>
 #include <cstdint>
@@ -49,13 +48,14 @@ struct MsgPad
 {
     DisassemblyMsgPad Disassemble;
 
-    std::atomic_bool EmulationPaused;
-    std::atomic_bool RewindPlaying;
+    bool EmulationPaused;
+    bool RewindActive;
+    bool PrintRewindStats;
 
     bool Reset;
     bool Shutdown;
     std::string ROMPath;
-    std::atomic_int DasmRequest;
+    int DasmRequest;
     std::vector<Breakpoint> Breakpoints;
 
     StepType StepType; // 'Unknown' is the 'dont care' value
