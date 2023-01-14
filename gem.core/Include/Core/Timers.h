@@ -32,4 +32,6 @@ private:
 	int divAcc; // Accumulates T cycles for the Divider
 	int ctrAcc; // Accumulates T cycles for the Counter
 	uint32_t tCyclesPerCtrCycle; // Counts how many M cycles fit inside a Counter register period
+
+	friend class RewindManager;
 };

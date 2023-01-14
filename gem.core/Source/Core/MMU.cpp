@@ -27,8 +27,15 @@ void MMU::Reset(bool bCGB)
 
 	for (int i = 0; i < 8; i++)
 	{
-		if (wramBanks[i].IsAllocated())
+		if (!wramBanks[i].IsAllocated())
+		{
+			wramBanks[i].Allocate();
+			wramBanks[i].Reserve();
+		}
+		else
+		{
 			wramBanks[i].Fill(0);
+		}
 	}
 
 	mbc.Reset();

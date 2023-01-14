@@ -7,11 +7,31 @@
 
 using namespace std;
 
+CartridgeProperties& CartridgeProperties::operator=(const CartridgeProperties& other)
+{
+	Type = other.Type;
+	Version = other.Version;
+	CGBCompatability = other.CGBCompatability;
+	HasExtRam = other.HasExtRam;
+	ExtRamHasBattery = other.ExtRamHasBattery;
+	HasRTC = other.HasRTC;
+	NumROMBanks = other.NumROMBanks;
+	ROMSize = other.ROMSize;
+	NumRAMBanks = other.NumRAMBanks;
+	RAMSize = other.RAMSize;
+
+	for (int i = 0; i < 16; i++)
+		Title[i] = other.Title[i];
+
+	return *this;
+}
+
 CartridgeReader::CartridgeReader()
 	: cursor(0)
 	, size(0)
 	, isLoaded(false)
 	, romData(nullptr)
+	, saveGameExists(false)
 {
 }
 

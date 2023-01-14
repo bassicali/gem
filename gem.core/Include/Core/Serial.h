@@ -27,4 +27,6 @@ private:
 	#ifdef WRITE_SERIAL_TO_FILE
 	std::ofstream fout;
 	#endif
+
+	friend class RewindManager;
 };

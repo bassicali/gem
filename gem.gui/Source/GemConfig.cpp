@@ -45,6 +45,9 @@ GemConfig::GemConfig()
 	, SelectKey(SDLK_RSHIFT)
 	, ShowDebugger(false)
 	, ShowConsole(false)
+	, RewindEnabled(true)
+	, RewindBufferDuration(10.0f)
+	, RewindFramesBetweenSnapshots(2)
 {
 	Colour0 = GemPalette::Black();
 	Colour1 = GemPalette::DarkGrey();
@@ -78,6 +81,9 @@ void GemConfig::Save()
 		WRITE_SETTING(ResolutionScale);
 		WRITE_SETTING(ShowDebugger);
 		WRITE_SETTING(ShowConsole);
+		WRITE_SETTING(RewindEnabled);
+		WRITE_SETTING(RewindBufferDuration);
+		WRITE_SETTING(RewindFramesBetweenSnapshots);
 
 		WRITE_HEX_SETTING(UpKey);
 		WRITE_HEX_SETTING(DownKey);
@@ -133,6 +139,10 @@ void GemConfig::Load(std::istream& stream)
 				PARSE_FLOAT(key, value, ResolutionScale)
 				PARSE_BOOL(key, value, ShowDebugger)
 				PARSE_BOOL(key, value, ShowConsole)
+
+				PARSE_BOOL(key, value, RewindEnabled)
+				PARSE_FLOAT(key, value, RewindBufferDuration)
+				PARSE_INT(key, value, RewindFramesBetweenSnapshots)
 
 				PARSE_INT(key, value, UpKey)
 				PARSE_INT(key, value, DownKey)

@@ -93,6 +93,7 @@ struct ColourPalette
 		uint16_t AsWord();
 	};
 
+	ColourPalette();
 	ColourPalette(std::string name);
 
 	void WritePaletteIndex(uint8_t value);
@@ -102,6 +103,8 @@ struct ColourPalette
 	const GemColour& GetColour(int palette, int colour_number);
 
 	void Reset();
+
+	ColourPalette& operator=(const ColourPalette& other);
 
 	std::string Name;
 

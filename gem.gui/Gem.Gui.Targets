@@ -10,6 +10,9 @@
       <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\$(SDL_DirectoryName)\lib\x64\SDL2.dll"/>
       <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\$(SDL_TTF_DirectoryName)\lib\x64\SDL2_ttf.dll"/>
       <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\$(SDL_TTF_DirectoryName)\lib\x64\libfreetype-6.dll"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\ffmpeg\bin\avcodec-59.dll"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\ffmpeg\bin\avutil-57.dll"/>
+      <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\ffmpeg\bin\swresample-4.dll"/>
       <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\zlib\bin\x64\zlib1.dll"/>
       <RuntimeDependencies Include="$(ProjectDir)..\thirdparty\fonts\imgui\DroidSans.ttf"/>
     </ItemGroup>

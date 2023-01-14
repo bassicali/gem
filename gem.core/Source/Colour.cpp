@@ -161,6 +161,12 @@ void ColourBuffer::CorrectPixel(int x, int y, CorrectionMode mode)
 	data[index].Correct(mode, 1.0);
 }
 
+GemColour ColourBuffer::GetPixel(int x, int y) const
+{
+	int index = (y * Width) + x;
+	return data[index];
+}
+
 void ColourBuffer::SetPixel(int x, int y, const GemColour& Colour)
 {
 	int index = (y * Width) + x;

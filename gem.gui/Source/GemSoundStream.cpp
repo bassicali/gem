@@ -10,7 +10,9 @@
 using namespace std;
 
 GemSoundStream::GemSoundStream()
-	: playing(false), initialized(false), device(0)
+	: playing(false)
+	, initialized(false)
+	, device(0)
 {
 }
 
@@ -78,6 +80,11 @@ int GemSoundStream::GetQueuedSampleCount()
 {
 	int size = SDL_GetQueuedAudioSize(device);
 	return size / sizeof(float);
+}
+
+void GemSoundStream::ClearQueue()
+{
+	SDL_ClearQueuedAudio(device);
 }
 
 void GemSoundStream::PushAudioData(const DArray<float>& buffer)

@@ -34,6 +34,7 @@ enum class CommandType
     APUUnmute,
     APUChannelOn,
     APUChannelMask,
+    RewindStats,
     Reset,
     Exit
 };

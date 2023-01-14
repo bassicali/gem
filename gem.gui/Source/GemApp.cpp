@@ -10,6 +10,7 @@
 #include "GemApp.h"
 #include "GemConfig.h"
 #include "Logging.h"
+#include "RewindManager.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -17,11 +18,13 @@ namespace fs = std::filesystem;
 
 using namespace GemUtil;
 
+bool T_key_down = false;
+
 GemApp::GemApp()
 	: mainWindow(nullptr)
+	, core()
+	, rewindFrame(GPU::LCDWidth, GPU::LCDHeight)
 {
-	int x = sizeof(GemDebugger);
-	int y = 0;
 }
 
 GemApp::~GemApp()
@@ -128,6 +131,15 @@ bool GemApp::Init(vector<string> args)
 		GMsgPad.Disassemble.State = DisassemblyRequestState::Requested;
 	}
 
+	if (GemConfig::Get().RewindEnabled)
+	{
+		auto& config = GemConfig::Get();
+		int rw_buff_count = (int)floor(config.RewindBufferDuration * (60 / config.RewindFramesBetweenSnapshots));
+		rewind.ResizeBuffer(rw_buff_count);
+		rewind.SetCore(&core);
+		rewind.InitVideoCodec();
+	}
+
 	return true;
 }
 
@@ -175,7 +187,7 @@ bool GemApp::InitCore()
 		core.Reset(ShouldEmulateCGBMode());
 	}
 
-	GMsgPad.EmulationPaused.store(GemConfig::Get().PauseAfterOpen || GMsgPad.ROMPath.empty());
+	GMsgPad.EmulationPaused = GemConfig::Get().PauseAfterOpen || GMsgPad.ROMPath.empty();
 
 	if (debugger.IsInitialized())
 		debugger.Reset();
@@ -191,6 +203,7 @@ void GemApp::Shutdown()
 		sound.Shutdown();
 	
 	core.Shutdown();
+	rewind.Shutdown();
 
 	if (TTF_WasInit())
 		TTF_Quit();
@@ -198,15 +211,13 @@ void GemApp::Shutdown()
 
 void GemApp::SetWindowTitles()
 {
-	bool emu_paused = GMsgPad.EmulationPaused.load();
-
 	stringstream ss1;
 	ss1 << "Gem";
 
 	if (core.IsROMLoaded())
 		ss1 << " - " << core.GetCartridgeReader()->Properties().Title;
 
-	if (emu_paused)
+	if (GMsgPad.EmulationPaused)
 		ss1 << " (PAUSED)";
 
 	mainWindow->SetTitle(SanitizeString(ss1.str()).c_str());
@@ -234,7 +245,16 @@ void GemApp::WindowLoop()
 		
 		if (LoopWork())
 		{
-			mainWindow->DrawFrame(core.GetGPU()->GetFrameBuffer());
+			if (rewind.IsRewinding())
+			{
+				rewind.GetCurrentRewindFrame(rewindFrame);
+				mainWindow->DrawFrame(rewindFrame);
+			}
+			else
+			{
+				mainWindow->DrawFrame(core.GetGPU()->GetFrameBuffer());
+			}
+
 			mainWindow->Present();
 		}
 
@@ -276,30 +296,57 @@ bool GemApp::LoopWork()
 	if (!core.IsROMLoaded())
 		return false;
 
-	bool emu_paused = GMsgPad.EmulationPaused.load();
-	bool swap = false;
+	if (rewind.IsInitialized())
+	{
+		if (GMsgPad.RewindActive && !rewind.IsRewinding())
+		{
+			rewind.StartRewind();
+			sound.ClearQueue();
+			sound.Pause();
+		}
+		else if (!GMsgPad.RewindActive && rewind.IsRewinding())
+		{
+			rewind.StopRewind(false);
+			sound.Play();
+		}
+	}
+
+	if (GMsgPad.PrintRewindStats)
+	{
+		GemConsole::Get().PrintLn("** REWIND STATISTICS **");
+		GemConsole::Get().PrintLn("%s", rewind.GetStatsSummary().c_str());
+		GMsgPad.PrintRewindStats = false;
+	}
+
+	bool emu_paused = GMsgPad.EmulationPaused;
+	bool present = false;
 
 	if (!emu_paused)
 	{
-		if (!GemConfig::Get().NoSound && !sound.IsPlaying())
+		if (!GemConfig::Get().NoSound && !sound.IsRewinding())
 			sound.Play();
 
-		// Emulate the core for 1 frame, handling breakpoints if needed
-		if (breakpoints.size() == 0 && !debugger.AnyBreakpoints())
+		if (rewind.IsRewinding()) // Ignore breakpoints during rewind
+		{
+			// Restore the recorded state of the core
+			rewind.ApplyCurrentRewindSnapshot();
+			present = true;
+		}
+		else if (!debugger.AnyBreakpoints())
 		{
 			core.TickUntilVBlank();
-			swap = true;
+			present = true;
 		}
 		else
 		{
 			if (DebuggerTick(false))
-				swap = true;
+				present = true;
 		}
 	}
 	else if (GMsgPad.StepType != StepType::None)
 	{
 		if (DebuggerTick(true))
-			swap = true;
+			present = true;
 	}
 
 	if (debugger.IsInitialized())
@@ -307,9 +354,20 @@ bool GemApp::LoopWork()
 		debugger.HandleDisassembly(emu_paused);
 	}
 
-	return swap;
+	// Skip some frames when adding to the rewind snapshot buffer.
+	// Rewind doesn't need be as fast since the user is just roughly looking for a place to stop.
+	static int rewind_rec_mod = 0;
+	if (present && rewind.IsInitialized() && !rewind.IsRewinding() && (rewind_rec_mod++ % GemConfig::Get().RewindFramesBetweenSnapshots) == 0)
+	{
+		rewind.RecordSnapshot();
+		rewind_rec_mod = 0;
+	}
+
+	return present;
 }
 
+// Tick the core while also evaluating break points. 
+// Ticking stops on 3 conditions: vblank, breakpoint hit, stepping finished.
 bool GemApp::DebuggerTick(bool emu_paused)
 {
 	bool hit = false, vblank = false;
@@ -385,12 +443,12 @@ bool GemApp::DebuggerTick(bool emu_paused)
 
 	if (bp_index >= 0)
 	{
-		GMsgPad.EmulationPaused.store(true);
+		GMsgPad.EmulationPaused = true;
 		GemConsole::Get().PrintLn("Breakpoint hit: %04Xh", breakpoints[bp_index].Address);
 	}
 	else if (wbp_index >= 0)
 	{
-		GMsgPad.EmulationPaused.store(true);
+		GMsgPad.EmulationPaused = true;
 		const Breakpoint& bp = wbps[wbp_index];
 
 		if (bp.CheckValue)
@@ -400,7 +458,7 @@ bool GemApp::DebuggerTick(bool emu_paused)
 	}
 	else if (rbp_index >= 0)
 	{
-		GMsgPad.EmulationPaused.store(true);
+		GMsgPad.EmulationPaused = true;
 		const Breakpoint& bp = rbps[rbp_index];
 
 		if (bp.CheckValue)
@@ -410,7 +468,7 @@ bool GemApp::DebuggerTick(bool emu_paused)
 	}
 	else if (emu_paused && stepping_finished)
 	{
-		GMsgPad.EmulationPaused.store(true);
+		GMsgPad.EmulationPaused = true;
 	}
 
 	// While the emulation is technically paused, we still want to refresh some values in the debugger window after 
@@ -498,6 +556,19 @@ void GemApp::KeyPressHandler(SDL_KeyboardEvent& ev)
 	else if (ev.keysym.sym == config.BKey)		core.GetJoypad()->Press(JoypadKey::B);
 	else if (ev.keysym.sym == config.StartKey)	core.GetJoypad()->Press(JoypadKey::Start);
 	else if (ev.keysym.sym == config.SelectKey) core.GetJoypad()->Press(JoypadKey::Select);
+
+	if (ev.keysym.sym == SDLK_t && !T_key_down)
+	{
+		T_key_down = true;
+	}
+
+	if (rewind.IsInitialized() && ev.keysym.sym == SDLK_r && !rewind.IsRewinding())
+	{
+		rewind.StartRewind();
+		sound.Pause();
+		sound.ClearQueue();
+		GMsgPad.RewindActive = true;
+	}
 }
 
 void GemApp::KeyReleaseHandler(SDL_KeyboardEvent& ev)
@@ -512,6 +583,21 @@ void GemApp::KeyReleaseHandler(SDL_KeyboardEvent& ev)
 	else if (ev.keysym.sym == config.BKey)		core.GetJoypad()->Release(JoypadKey::B);
 	else if (ev.keysym.sym == config.StartKey)	core.GetJoypad()->Release(JoypadKey::Start);
 	else if (ev.keysym.sym == config.SelectKey) core.GetJoypad()->Release(JoypadKey::Select);
+
+	if (ev.keysym.sym == SDLK_t && T_key_down)
+	{
+		T_key_down = false;
+	}
+
+	if (rewind.IsRewinding())
+	{
+		if (ev.keysym.sym == SDLK_r)
+		{
+			rewind.StopRewind(T_key_down);
+			GMsgPad.RewindActive = false;
+			sound.Play();
+		}
+	}
 }
 
 void GemApp::HandleDropEventFileChanged()

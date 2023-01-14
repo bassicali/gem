@@ -63,7 +63,7 @@ class GPU
 		void SetCartridge(std::shared_ptr<CartridgeReader> ptr);
 		const bool IsCGB() const { return bCGB; }
 		void SetInterruptController(std::shared_ptr<InterruptController> ptr);
-		void SetMMU(std::shared_ptr<IMappedComponent> ptr);
+		void SetMMU(std::shared_ptr<IMMU> ptr);
 
 		LCDMode GetMode() const { return stat.Mode; }
 		void SetMode(LCDMode mode) { stat.Mode = mode; }
@@ -137,5 +137,7 @@ class GPU
 
 		std::shared_ptr<CartridgeReader> cart;
 		std::shared_ptr<InterruptController> interrupts;
-		std::shared_ptr<IMappedComponent> mmu;
+		std::shared_ptr<IMMU> mmu;
+
+		friend class RewindManager;
 };

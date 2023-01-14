@@ -17,7 +17,7 @@ Gem::Gem()
 	, tickCount(0)
 	, frameCount(0)
 	, tickAPU(true)
-	, tracing(false)
+	, isTracing(false)
 {
 	cpu.SetMMU(mmu);
 	mmu->SetGPU(gpu);
@@ -45,7 +45,7 @@ void Gem::Reset(bool bCGB)
 	tickCount = 0;
 	frameCount = 0;
 
-	if (tracing)
+	if (isTracing)
 		EndTrace();
 }
 
@@ -138,20 +138,20 @@ string Gem::StartTrace()
 	file_name.append(to_string(id));
 	file_name.append(".txt");
 	traceFile = new ofstream(file_name.c_str(), std::ofstream::out);
-	tracing = true;
+	isTracing = true;
 	return file_name;
 }
 
 void Gem::EndTrace()
 {
-	tracing = false;
+	isTracing = false;
 	delete traceFile;
 	traceFile = nullptr;
 }
 
 inline void Gem::HandleTracing(uint16_t pc, uint16_t inst)
 {
-	if (!tracing)
+	if (!isTracing)
 		return;
 
 	OpCodeInfo* inst_info = nullptr;

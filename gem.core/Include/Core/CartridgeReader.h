@@ -50,18 +50,20 @@ enum class CGBSupport
 struct CartridgeProperties
 {
 	CartridgeProperties()
-		: Type(CartridgeType::RomOnly),
-			Version(MBCVersion::MBC1),
-			CGBCompatability(CGBSupport::NoCGBSupport),
-			HasExtRam(false),
-			ExtRamHasBattery(false),
-			HasRTC(false),
-			NumRAMBanks(0),
-			ROMSize(0),
-			RAMSize(0)
+		: Type(CartridgeType::RomOnly)
+		, Version(MBCVersion::MBC1)
+		, CGBCompatability(CGBSupport::NoCGBSupport)
+		, HasExtRam(false)
+		, ExtRamHasBattery(false)
+		, HasRTC(false)
+		, NumRAMBanks(0)
+		, ROMSize(0)
+		, RAMSize(0)
 	{
 		memset(Title, 0, 16 * sizeof(char));
 	}
+
+	CartridgeProperties& operator=(const CartridgeProperties& other);
 
 	CartridgeType Type;
 	MBCVersion Version;

@@ -412,6 +412,8 @@ void GemConsole::DefineCommands()
     ADD_COMMAND("play", CommandType::Run);
     ADD_COMMAND("pause", CommandType::Pause);
 
+    ADD_COMMAND("rwstats", CommandType::RewindStats);
+
     ADD_COMMAND("save", CommandType::Save);
 
     ADD_COMMAND("mute", CommandType::APUMute);

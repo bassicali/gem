@@ -26,4 +26,6 @@ class CGBRegisters
 		uint16_t wramOffset;
 		bool prepareSpeedSwitch;
 		SpeedMode currentSpeed;
+
+		friend class RewindManager;
 };

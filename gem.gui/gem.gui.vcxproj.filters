@@ -93,6 +93,9 @@
     <ClCompile Include="Source\Util.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="Source\RewindManager.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Include\RenderWindow.h">
@@ -159,9 +162,16 @@
     <ClInclude Include="Include\Util.h">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="Include\RewindManager.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\CircularList.h">
+      <Filter>Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Gem.Gui.Targets" />
+    <None Include="cpp.hint" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="gem.gui.rc" />

@@ -54,7 +54,7 @@ void GPU::SetInterruptController(std::shared_ptr<InterruptController> ptr)
 	interrupts = ptr;
 }
 
-void GPU::SetMMU(std::shared_ptr<IMappedComponent> ptr)
+void GPU::SetMMU(std::shared_ptr<IMMU> ptr)
 {
 	mmu = ptr;
 }

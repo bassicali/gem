@@ -172,6 +172,11 @@ const GemColour& MonochromePalette::GetColour(uint8_t colour_number)
 /// Colour Palette ///
 //////////////////////
 
+ColourPalette::ColourPalette()
+{
+	Reset();
+}
+
 ColourPalette::ColourPalette(string name)
 	: Name(name)
 {
@@ -256,6 +261,17 @@ const GemColour& ColourPalette::GetColour(int palette, int colour_number)
 	int index = (palette * 4) + colour_number; // Every 4 colours is 1 palette
 	return Data[index].Colour;
 }
+
+ColourPalette& ColourPalette::operator=(const ColourPalette& other)
+{
+	Name = other.Name;
+	PaletteIndex = other.PaletteIndex;
+	IndexAutoIncrement = other.IndexAutoIncrement;
+	PaletteIndexRegisterByte = other.PaletteIndexRegisterByte;
+	memcpy(Data, other.Data, 32 * sizeof(PaletteEntry));
+	return *this;
+}
+
 
 //////////////////////////
 /// CGB Tile Attribute ///

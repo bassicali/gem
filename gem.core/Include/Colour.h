@@ -80,6 +80,7 @@ struct ColourBuffer : public DArray<GemColour>
 	ColourBuffer();
 	ColourBuffer(int w, int h);
 	void CorrectPixel(int x, int y, CorrectionMode mode = CorrectionMode::Washout);
+	GemColour GetPixel(int x, int y) const;
 	void SetPixel(int x, int y, const GemColour& Colour);
 	const GemColour* Copy(GemColour* dest = nullptr) const;
 	void Zero();

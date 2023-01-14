@@ -17,7 +17,7 @@
 #include "Core/Joypad.h"
 #include "Disassembler.h"
 
-class MMU : public IMappedComponent, public std::enable_shared_from_this<MMU>
+class MMU : public IMMU, public std::enable_shared_from_this<MMU>
 {
 	public:
 		MMU();
@@ -75,4 +75,6 @@ class MMU : public IMappedComponent, public std::enable_shared_from_this<MMU>
 
 		DArray<uint8_t> wramBanks[8];
 		uint8_t hram[128];
+
+		friend class RewindManager;
 };

@@ -230,7 +230,7 @@ void GemDebugger::LayoutWidgets()
 	ImGui::SetNextWindowSize(ImVec2(work_size.x, main_area_height));
 	
 	static bool is_paused;
-	is_paused = GMsgPad.EmulationPaused.load();
+	is_paused = GMsgPad.EmulationPaused;
 
 	static bool update_cpu_registers, update_lcd_registers;
 	update_cpu_registers = false;
@@ -1324,12 +1324,17 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 		}
 		case CommandType::Run:
 		{
-			GMsgPad.EmulationPaused.store(false);
+			GMsgPad.EmulationPaused = false;
 			break;
 		}
 		case CommandType::Pause:
 		{
-			GMsgPad.EmulationPaused.store(true);
+			GMsgPad.EmulationPaused = true;
+			break;
+		}
+		case CommandType::RewindStats:
+		{
+			GMsgPad.PrintRewindStats = true;
 			break;
 		}
 		case CommandType::Save:
@@ -1528,7 +1533,7 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 		case CommandType::StepN:
 		case CommandType::StepUntilVBlank:
 		{
-			if (GMsgPad.EmulationPaused.load() == true)
+			if (GMsgPad.EmulationPaused)
 			{
 				//if (cmd.Type == CommandType::StepUntilVBlank)
 				//	GMsgPad.StepParams.UntilVBlank = true;
@@ -1630,7 +1635,7 @@ void GemDebugger::UpdateDisassembly(uint16_t addr)
 			}
 		}
 
-		// TODO: new data was probably written to this memory space and now the PC doesn't line up with a opcode
+		// TODO: new data could have been written to this memory space and now the PC doesn't align to an opcode
 		assert(found);
 	}
 	else
@@ -1941,7 +1946,7 @@ void UIEditingModel::SetValuesFromCore(Gem& core, bool registers, bool interrupt
 
 		sprintf_s((char*)LCDS_LY, 5, "%d", core.GetGPU()->GetLCDPositions().LineY);
 		sprintf_s((char*)LCDS_LYC, 5, "%d", core.GetGPU()->GetLCDPositions().LineYCompare);
-		sprintf_s((char*)LCDS_Mode, 2, "%d", core.GetGPU()->GetLCDStatus().Mode);
+		sprintf_s((char*)LCDS_Mode, 5, "%02d", core.GetGPU()->GetLCDStatus().Mode);
 	}
 }
 
