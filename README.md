@@ -88,5 +88,6 @@ When enabled this feature will save a snapshot of the last N seconds of game pla
 ## Projects
 - [SDL2](https://www.libsdl.org/download-2.0.php)
 - [Dear ImGui](https://github.com/ocornut/imgui)
+- [FFmpeg](https://ffmpeg.org/)
 - [BGB Emulator Debugger](https://bgb.bircd.org/) - super useful during the development of gem.
 - Droid Sans font
