@@ -51,10 +51,13 @@ A config file named `gem.ini` is used to persist some user settings. It's create
 | DMGPalette | A '\|' delimited list of four colours for the DMG palette (starting with white/colour 0). Each colour can be formated using `rgb(x,x,x)` or as a 24-bit hex number: `FFCFEAh`. E.g. `DMGPalette=F7FBE1h\|BAC964h\|438A5Eh\|436F8Ah` |
 
 ## Rewind Mode
-To rewind game play press and hold the `R` key then release when you want to stop. Hold down the `T` key while releasing `R` to continue from the start of the rewind. 
+To rewind gameplay press and hold the `R` key then release when you want to stop. Hold down the `T` key while releasing `R` to continue from the start of the rewind (i.e. discard the rewind operation). 
 When enabled this feature will save a snapshot of the last N seconds of game play allowing you to rewind to a previous state. 
 
+<img src="images/rewind-demo.gif"></img>
+
 | Config Key | Description |
+| --- | --- |
 | RewindBufferDuration | How many seconds of game play to save to the rewind buffer. |
 | RewindFramesBetweenSnapshots | How many frames to skip before taking a rewind snapshot. |
 | RewindEnabled | Enable or disable the rewind feature and buffer. |
