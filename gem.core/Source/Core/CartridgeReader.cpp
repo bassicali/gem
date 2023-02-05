@@ -31,7 +31,7 @@ CartridgeReader::CartridgeReader()
 	, size(0)
 	, isLoaded(false)
 	, romData(nullptr)
-	, saveGameExists(false)
+	, gemSaveExists(false)
 {
 }
 
@@ -74,20 +74,23 @@ void CartridgeReader::LoadFile(const char* file)
 		cartProps.NumROMBanks = size / 0x4000;
 	}
 
-	if (cartProps.ExtRamHasBattery)
+	string path(file);
+	int pos = path.find_last_of('.');
+	if (pos >= 0)
 	{
-		string path(file);
-		int pos = path.find_last_of('.');
-		if (pos >= 0)
-		{
-			path = path.substr(0, pos) + ".gem";
-		}
-		else
-		{
-			path = path + ".gem";
-		}
-		saveGameExists = filesystem::exists(path);
-		saveGamePath = path;
+		path = path.substr(0, pos) + ".gem";
+	}
+	else
+	{
+		path = path + ".gem";
+	}
+
+	gemSaveExists = filesystem::exists(path);
+	gemSavePath = path;
+
+	if (!gemSaveExists)
+	{
+		LOG_INFO("Gem save file not found: %s");
 	}
 
 	cursor = 0;
@@ -164,21 +167,25 @@ void CartridgeReader::DecodeHeader(const uint8_t header_data[], CartridgePropert
 	{
 		props.NumRAMBanks = 1; // 2KB
 		props.RAMSize = 2;
+		props.RAMBankSize = 0x800;
 	}
 	else if (ram_size_flag == 0x02)
 	{
 		props.NumRAMBanks = 1; // 8KB
 		props.RAMSize = 8;
+		props.RAMBankSize = 0x2000;
 	}
 	else if (ram_size_flag == 0x03)
 	{
 		props.NumRAMBanks = 4; // 32 KB
 		props.RAMSize = 32;
+		props.RAMBankSize = 0x2000;
 	}
 	else if (ram_size_flag == 0x10)
 	{
 		props.NumRAMBanks = 16; // 128 KB
 		props.RAMSize = 128;
+		props.RAMBankSize = 0x2000;
 	}
 	else if (ram_size_flag != 0)
 	{

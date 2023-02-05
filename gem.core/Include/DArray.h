@@ -11,19 +11,36 @@
 // with auto adjusted size or as a list where indices can't be accessed
 // unless PushBack() is used to add something to that index.
 
+#define CHECK(expr, msg) if (!(expr)) { throw std::exception(msg); } while(0)
+
 template <class T>
 class DArray
 {
+
+protected:
+	uint32_t numElements;
+	uint32_t numSpots;
+	T* pData;
+
 public:
-	DArray() : data(nullptr), count(0), capacity(0)
+	DArray() 
+		: pData(nullptr)
+		, numElements(0)
+		, numSpots(0)
 	{
 	}
 
-	DArray(uint32_t capacity) : data(nullptr), count(0), capacity(capacity)
+	DArray(uint32_t numSpots) 
+		: pData(nullptr)
+		, numElements(0)
+		, numSpots(numSpots)
 	{
 	}
 
-	DArray(uint32_t capacity, bool reserve_now) : data(nullptr), count(0), capacity(capacity)
+	DArray(uint32_t numSpots, bool reserve_now) 
+		: pData(nullptr)
+		, numElements(0)
+		, numSpots(numSpots)
 	{
 		if (reserve_now)
 		{
@@ -34,143 +51,131 @@ public:
 
 	DArray(const DArray& other)
 	{
-		data = (T*)malloc(other.Size());
-		if (data == nullptr)
-			throw std::exception("Could not allocate memory for DArray");
+		pData = (T*)malloc(other.Size());
+		CHECK(pData != nullptr, "Could not allocate memory for DArray");
 		
-		memcpy(data, other.data, other.Size());
-		capacity = other.capacity;
+		memcpy(pData, other.pData, other.Size());
+		numSpots = other.numSpots;
 	}
 
 	DArray(DArray&& other)
 	{
-		data = other.data;
-		capacity = other.capacity;
-		count = other.count;
-		other.data = nullptr;
-		other.capacity = 0;
-		other.count = 0;
+		pData = other.pData;
+		numSpots = other.numSpots;
+		numElements = other.numElements;
+		other.pData = nullptr;
+		other.numSpots = 0;
+		other.numElements = 0;
 	}
 
 	DArray& operator=(const DArray& other)
 	{
-		data = (T*)malloc(other.Size());
-		if (data == nullptr)
-			throw std::exception("Could not allocate memory for DArray");
+		pData = (T*)malloc(other.Size());
+		CHECK(pData != nullptr, "Could not allocate memory for DArray");
 		
-		memcpy(data, other.data, other.Size());
-		capacity = other.capacity;
+		memcpy(pData, other.pData, other.Size());
+		numSpots = other.numSpots;
 	}
 
 	DArray& operator=(DArray&& other)
 	{
-		data = other.data;
-		capacity = other.capacity;
-		count = other.count;
-		other.data = nullptr;
-		other.capacity = 0;
-		other.count = 0;
+		pData = other.pData;
+		numSpots = other.numSpots;
+		numElements = other.numElements;
+		other.pData = nullptr;
+		other.numSpots = 0;
+		other.numElements = 0;
 		return *this;
 	}
 
 	void Swap(DArray& other)
 	{
-		T* temp_data = data;
-		uint32_t temp_count = count;
-		uint32_t temp_capacity = capacity;
+		T* temp_pData = pData;
+		uint32_t temp_numElements = numElements;
+		uint32_t temp_spots = numSpots;
 
-		data = other.data;
-		capacity = other.capacity;
-		count = other.count;
+		pData = other.pData;
+		numSpots = other.numSpots;
+		numElements = other.numElements;
 
-		other.data = temp_data;
-		other.capacity = temp_count;
-		other.count = temp_capacity;
+		other.pData = temp_pData;
+		other.numSpots = temp_numElements;
+		other.numElements = temp_spots;
 	}
 
 	T& operator[](int index)
 	{
-		if (data == nullptr)
-			throw std::exception("No memory allocated");
+		CHECK(pData != nullptr, "No memory allocated");
+		CHECK(IsIndexValid(index), "Index out of range");
 
-		if (!IsIndexValid(index))
-			throw std::exception("Index out of range");
-
-		return data[index];
+		return pData[index];
 	}
 
 	const T& operator[](int index) const
 	{
-		if (data == nullptr)
-			throw std::exception("No memory allocated");
+		CHECK(pData != nullptr, "No memory allocated");
+		CHECK(IsIndexValid(index), "Index out of range");
 
-		if (!IsIndexValid(index))
-			throw std::exception("Index out of range");
-
-		return data[index];
+		return pData[index];
 	}
 
 	~DArray()
 	{
-		if (data != nullptr)
+		if (pData != nullptr)
 		{
-			delete[] data;
+			delete[] pData;
 		}
 	}
 
 	void Reserve()
 	{
-		count = capacity;
+		numElements = numSpots;
 	}
 
 	void Allocate()
 	{
-		if (data != nullptr)
-			throw std::exception("Memory already allocated");
+		CHECK(pData == nullptr, "Memory already allocated");
+		CHECK(numSpots > 0, "Allocation size must be greater than 0");
 
-		if (capacity == 0)
-			throw std::exception("Allocation size must be greater than 0");
-
-		data = new T[capacity];
-		if (data == nullptr)
-			throw std::exception("Could not allocate memory for DArray");
+		pData = new T[numSpots];
+		CHECK(pData != nullptr, "Could not allocate memory for DArray");
 	}
 
 	void Free()
 	{
-		if (data == nullptr)
+		if (!pData)
 			return;
 
-		delete[] data;
-		data = nullptr;
-		count = 0;
-		capacity = 0;
+		delete[] pData;
+		pData = nullptr;
+		numElements = 0;
+		numSpots = 0;
 	}
 
-	bool SetCapacity(uint32_t new_capacity)
+	bool SetCapacity(uint32_t new_spots)
 	{
-		if (new_capacity > capacity)
+		if (new_spots > numSpots)
 		{
-			T* new_ptr = new T[new_capacity];
+			T* new_ptr = new T[new_spots];
 
-			memcpy(new_ptr, data, capacity * sizeof(T));
-			delete[] data;
+			memcpy(new_ptr, pData, numSpots * sizeof(T));
+			delete[] pData;
 
-			data = new_ptr;
-			capacity = new_capacity;
+			pData = new_ptr;
+			numSpots = new_spots;
 
 			return true;
 		}
-		else if (new_capacity < capacity)
+		else if (new_spots < numSpots)
 		{
-			T* new_ptr = new T[new_capacity];
+			T* new_ptr = new T[new_spots];
 
-			memcpy(new_ptr, data, new_capacity * sizeof(T));
-			delete[] data;
+			memcpy(new_ptr, pData, new_spots * sizeof(T));
+			delete[] pData;
 
-			count = min(count, new_capacity);
-			data = new_ptr;
-			capacity = new_capacity;
+			numElements = min(numElements, new_spots);
+			pData = new_ptr;
+			numSpots = new_spots;
 
 			return true;
 		}
@@ -178,64 +183,54 @@ public:
 		return false;
 	}
 
-	bool Grow(uint32_t additional_capacity)
+	bool Grow(uint32_t additional_spots)
 	{
-		return SetCapacity(capacity + additional_capacity);
+		return SetCapacity(numSpots + additional_spots);
 	}
 
 	// Reduce size of allocation while potentially also discarding elements;
-	bool Shrink(uint32_t remove_capacity)
+	bool Shrink(uint32_t remove_spots)
 	{
-		return SetCapacity(capacity - remove_capacity);
+		return SetCapacity(numSpots - remove_spots);
 	}
 
 	void PushBack(T value)
 	{
-		if (data == nullptr)
-			throw std::exception("No memory allocated");
+		CHECK(pData != nullptr, "No memory allocated");
 
-		if (count >= capacity)
+		if (numElements >= numSpots)
 		{
 			Grow(2);
 		}
 
-		data[count++] = value;
+		pData[numElements++] = value;
 	}
 
-	// Discard elements (i.e. Count() returns new_count from now on)
-	void Truncate(uint32_t new_count)
+	// Discard elements (i.e. Count() returns new_numElements from now on)
+	void Truncate(uint32_t new_numElements)
 	{
-		if (data == nullptr)
-			throw std::exception("No memory allocated");
+		CHECK(pData != nullptr, "No memory allocated");
+		CHECK(new_numElements <= numSpots, "Allocation is smaller than truncation size");
 
-		if (new_count > capacity)
-			throw std::exception("Allocation is smaller than truncation size");
-
-		count = new_count;
+		numElements = new_numElements;
 	}
 
 	void Fill(const T& value)
 	{
-		if (data == nullptr)
-			throw std::exception("No memory allocated");
+		CHECK(pData != nullptr, "No memory allocated");
 
-		for (uint32_t i = 0; i < capacity; i++)
-			data[i] = value;
+		for (uint32_t i = 0; i < numSpots; i++)
+			pData[i] = value;
 		
-		count = capacity;
+		numElements = numSpots;
 	}
 
-	bool const IsAllocated() const { return data != nullptr; }
-	bool const IsIndexValid(uint32_t index) const { return index >= 0 && index < count; }
-	const uint32_t Count() const { return count; }
-	const void SetCount(int new_count) { count = new_count; }
-	const uint32_t Capacity() const { return capacity; }
-	const uint32_t Size() const { return capacity * sizeof(T); }
-	const T* Ptr() const { return data; }
-	T* Ptr() { return data; }
-
-protected:
-	uint32_t count;
-	uint32_t capacity;
-	T* data;
+	bool const IsAllocated() const { return pData != nullptr; }
+	bool const IsIndexValid(uint32_t index) const { return index >= 0 && index < numElements; }
+	const uint32_t Count() const { return numElements; }
+	const void SetCount(int new_numElements) { numElements = new_numElements; }
+	const uint32_t Capacity() const { return numSpots; }
+	const uint32_t Size() const { return numSpots * sizeof(T); }
+	const T* Ptr() const { return pData; }
+	T* Ptr() { return pData; }
 };

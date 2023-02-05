@@ -59,6 +59,7 @@ struct CartridgeProperties
 		, NumRAMBanks(0)
 		, ROMSize(0)
 		, RAMSize(0)
+		, RAMBankSize(0)
 	{
 		memset(Title, 0, 16 * sizeof(char));
 	}
@@ -77,6 +78,8 @@ struct CartridgeProperties
 	int ROMSize;
 	int NumRAMBanks;
 	int RAMSize;
+	int RAMBankSize;
+
 };
 
 class CartridgeReader
@@ -96,8 +99,8 @@ class CartridgeReader
 		const CartridgeProperties& Properties() const { return cartProps; }
 		CGBSupport GetCGBCompatability() const { return cartProps.CGBCompatability; }
 		
-		const std::string& SaveGameFile() const { return saveGamePath; }
-		const bool SaveGameFileExists() const { return saveGameExists; }
+		const std::string& SaveGameFile() const { return gemSavePath; }
+		const bool SaveGameFileExists() const { return gemSaveExists; }
 
 		static std::string ROMTypeString(CartridgeType type);
 		static std::string CGBSupportString(CGBSupport type);
@@ -112,6 +115,6 @@ class CartridgeReader
 		unsigned int size;
 		unsigned int cursor;
 
-		std::string saveGamePath;
-		bool saveGameExists;
+		std::string gemSavePath;
+		bool gemSaveExists;
 };

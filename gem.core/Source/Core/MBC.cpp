@@ -67,106 +67,70 @@ void MBC::SetCartridge(std::shared_ptr<CartridgeReader> ptr)
 			}
 		}
 	}
-
-	if (cp.ExtRamHasBattery && ptr->SaveGameFileExists())
-		LoadSaveGame();
 }
 
-void MBC::WriteSaveGame()
+bool MBC::SaveExternalRAM(ofstream& fout, streamsize& write_count)
 {
-#define WRITE(ptr, size) fout.write(reinterpret_cast<char*>(ptr), size); count += fout.good() ? size : 0;
+#define WRITE(ptr, size) fout.write(reinterpret_cast<char*>(ptr), size); if (fout.good()) { write_count += size; } else { LOG_ERROR("Unexpected error writing save game file"); return false; }
+	if (!cp.ExtRamHasBattery)
+	{
+		return true;
+	}
 
-	ofstream fout(cart->SaveGameFile().c_str(), ios::binary | ios::trunc);
-	streamsize count = 0;
-
-	WRITE(_GEM_SAVE_GAME_HEADER, 18)
-
-	uint8_t curr;
-	curr = cp.HasRTC ? 1 : 0;
+	uint8_t curr = cp.HasRTC ? 1 : 0;
 	WRITE(&curr, 1)
 	WRITE(&lastLatchedTime, sizeof(tm));
+
+	curr = cp.NumRAMBanks;
+	WRITE(&curr, 1)
 
 	for (int i = 0; i < cp.NumRAMBanks; i++)
 	{
 		assert(extRAMBanks[i].IsAllocated());
-		curr = 0xEE;
-		WRITE(&curr, 1)
 		WRITE(extRAMBanks[i].Ptr(), extRAMBanks[i].Size());
 	}
 
-	LOG_INFO("Saved game to %s (%d bytes)", cart->SaveGameFile().c_str(), count);
-	fout.close();
-
+	return true;
 #undef WRITE
 }
 
-bool MBC::LoadSaveGame()
+bool MBC::LoadExternalRAM(ifstream& input, streamsize& read_count)
 {
-#define READ(ptr, size) fin.read(reinterpret_cast<char*>(ptr), size); count += fin.good() ? size : 0;
+#define READ(ptr, size) input.read(reinterpret_cast<char*>(ptr), size); if (input.good()) { read_count += size; } else { LOG_ERROR("Save game file is invalid"); return false; }
 
-	ifstream fin(cart->SaveGameFile().c_str(), ios::binary);
-	streamsize count = 0;
-
-	char header[19];
-	header[18] = '\0';
-
-	READ(header, 18)
-	if (strncmp(header, _GEM_SAVE_GAME_HEADER, 18) != 0)
+	if (!cp.ExtRamHasBattery)
 	{
-		LOG_ERROR("Invalid header in gem save file: %s", header);
-		return false;
+		return true;
 	}
 
-	uint8_t curr;
+	uint8_t curr = 0;
 	READ(&curr, 1)
 
 	if (curr == 0 && cp.HasRTC) // 0 = No RTC data
 	{
-		LOG_ERROR("Save game file is invalid");
+		LOG_ERROR("Save game file is invalid (RTC flag)");
 		return false;
 	}
 
 	READ(&lastLatchedTime, sizeof(tm))
 
-	for (int i = 0; i < cp.NumRAMBanks; i++)
-	{
-		READ(&curr, 1)
-
-		if (curr == 0xEE)
-		{
-			if (!extRAMBanks[i].IsAllocated())
-				extRAMBanks[i].Allocate();
-
-			extRAMBanks[i].Reserve();
-			READ(extRAMBanks[i].Ptr(), RAMBankSize)
-
-			if (!fin)
-			{
-				LOG_ERROR("Error while reading save file");
-				return false;
-			}
-		}
-		else if (curr != 0xCC)
-		{
-			LOG_ERROR("Unexpected byte in save file at position %d", fin.gcount());
-			return false;
-		}
-	}
-
 	READ(&curr, 1)
-	if (!fin.eof())
+	if (curr != cp.NumRAMBanks)
 	{
-		LOG_ERROR("Save game file is too large");
+		LOG_ERROR("Save game file is invalid (RAM size)");
 		return false;
 	}
-	else
+
+	for (int i = 0; i < cp.NumRAMBanks; i++)
 	{
-		LOG_INFO("Save game file loaded (%d bytes)", count);
+		if (!extRAMBanks[i].IsAllocated())
+			extRAMBanks[i].Allocate();
+
+		extRAMBanks[i].Reserve();
+		READ(extRAMBanks[i].Ptr(), RAMBankSize)
 	}
 
-	fin.close();
 	return true;
-
 #undef READ
 }
 

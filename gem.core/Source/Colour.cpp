@@ -158,32 +158,32 @@ ColourBuffer::ColourBuffer(int w, int h)
 void ColourBuffer::CorrectPixel(int x, int y, CorrectionMode mode)
 {
 	int index = (y * Width) + x;
-	data[index].Correct(mode, 1.0);
+	pData[index].Correct(mode, 1.0);
 }
 
 GemColour ColourBuffer::GetPixel(int x, int y) const
 {
 	int index = (y * Width) + x;
-	return data[index];
+	return pData[index];
 }
 
 void ColourBuffer::SetPixel(int x, int y, const GemColour& Colour)
 {
 	int index = (y * Width) + x;
-	data[index] = Colour;
+	pData[index] = Colour;
 }
 
 const GemColour* ColourBuffer::Copy(GemColour* dest) const
 {
 	if (dest == nullptr)
 	{
-		dest = new GemColour[count];
+		dest = new GemColour[numElements];
 	}
-	memcpy(dest, data, count * sizeof(GemColour));
+	memcpy(dest, pData, numElements * sizeof(GemColour));
 	return dest;
 }
 
 void ColourBuffer::Zero()
 {
-	memset(data, 0, Size());
+	memset(pData, 0, Size());
 }

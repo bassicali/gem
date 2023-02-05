@@ -1,7 +1,8 @@
 
 #include "RewindManager.h"
 #include "Logging.h"
-#include <Core/Gem.h>
+#include "Core/Gem.h"
+#include "GemConfig.h"
 
 #include <sstream>
 #include <cmath>
@@ -14,6 +15,7 @@ extern "C"
 	#include <libavutil/imgutils.h>
 }
 
+using namespace std;
 
 ////////////////////////
 ///   RewindManager   //
@@ -145,6 +147,24 @@ void RewindManager::Shutdown()
 	shutdown = true;
 }
 
+bool RewindManager::LoadFromGemSave(std::istream& input, std::streamsize& count)
+{
+	RewindSnapshot snapshot;
+	if (snapshot.ReadFromStream(input, count))
+	{
+		ApplySnapshot(snapshot);
+		return true;
+	}
+	return false;
+}
+
+bool RewindManager::WriteToGemSave(std::ostream& output, std::streamsize& count)
+{
+	RewindSnapshot snapshot;
+	GetSnapshot(snapshot, /*include_frame_buffer*/ false);
+	return snapshot.WriteToStream(output, count);
+}
+
 void RewindManager::RecordSnapshot()
 {
 	if (isRewinding || !initialized)
@@ -197,7 +217,7 @@ void RewindManager::RecordSnapshot()
 	}
 }
 
-void RewindManager::GetSnapshot(RewindSnapshot& snapshot)
+void RewindManager::GetSnapshot(RewindSnapshot& snapshot, bool include_frame_buffer /* = true*/)
 {
 	snapshot.Gem_bCGB = core->bCGB;
 
@@ -242,7 +262,7 @@ void RewindManager::GetSnapshot(RewindSnapshot& snapshot)
 		memcpy(joinedWorkingRAM.data() + 0x1000 * i, mmu->wramBanks[i].Ptr(), mmu->wramBanks[i].Size());
 	}
 
-	snapshot.MMU_CompressedWRAM = std::vector<uint8_t>(0x1000);
+	snapshot.MMU_CompressedWRAM = vector<uint8_t>(0x1000);
 	CompressData(joinedWorkingRAM.data(), joinedWorkingRAM.size(), snapshot.MMU_CompressedWRAM);
 
 	// MBC
@@ -261,13 +281,15 @@ void RewindManager::GetSnapshot(RewindSnapshot& snapshot)
 	snapshot.MBC_lastLatchedTime = mbc.lastLatchedTime;
 	snapshot.MBC_daysOverflowed = mbc.daysOverflowed;
 
-	for (int i = 0; i < 4; i++)
+	int ext_ram_size = 0;
+	for (int i = 0; i < mbc.numExtRAMBanks; i++)
 	{
 		memcpy(joinedExtRAM.data() + MBC::RAMBankSize * i, mbc.extRAMBanks[i].Ptr(), mbc.extRAMBanks[i].Size());
+		ext_ram_size += MBC::RAMBankSize;
 	}
 
-	snapshot.MBC_CompressedExtRAM = std::vector<uint8_t>(0x1000);
-	CompressData(joinedExtRAM.data(), joinedExtRAM.size(), snapshot.MBC_CompressedExtRAM);
+	snapshot.MBC_CompressedExtRAM = vector<uint8_t>(0x1000);
+	CompressData(joinedExtRAM.data(), ext_ram_size, snapshot.MBC_CompressedExtRAM);
 
 	// CGBRegisters
 	CGBRegisters& cgb = core->mmu->cgb_state;
@@ -345,9 +367,16 @@ void RewindManager::GetSnapshot(RewindSnapshot& snapshot)
 
 	CompressData(joinedSprites.data(), joinedSprites.size(), snapshot.GPU_CompressedSprites);
 
-	AVPacket* packet = nullptr;
-	EncodeVideoFrame(core->gpu->GetFrameBuffer(), packet);
-	snapshot.GPU_CompressedFramePacket = packet;
+	if (include_frame_buffer)
+	{
+		AVPacket* packet = nullptr;
+		EncodeVideoFrame(core->gpu->GetFrameBuffer(), packet);
+		snapshot.GPU_CompressedFramePacket = packet;
+	}
+	else
+	{
+		snapshot.GPU_CompressedFramePacket = nullptr;
+	}
 }
 
 void RewindManager::ApplyCurrentRewindSnapshot()
@@ -425,7 +454,7 @@ void RewindManager::ApplySnapshot(const RewindSnapshot& snapshot)
 
 	DecompressData(snapshot.MBC_CompressedExtRAM.data(), snapshot.MBC_CompressedExtRAM.size(), joinedExtRAM);
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < mbc.numExtRAMBanks; i++)
 	{
 		memcpy(mbc.extRAMBanks[i].Ptr(), joinedExtRAM.data() + MBC::RAMBankSize * i, MBC::RAMBankSize);
 	}
@@ -543,8 +572,8 @@ void RewindManager::GetCurrentRewindFrame(ColourBuffer& framebuffer)
 	if (buffCount == buffer.size()) // Buffer is full
 	{
 		idxRewind = idxRewind == 0
-					  ? buffCount - 1
-					  : idxRewind - 1;
+					? buffCount - 1
+					: idxRewind - 1;
 	}
 	else
 	{
@@ -568,7 +597,7 @@ bool RewindManager::StopRewind(bool continueFromStart)
 		ApplySnapshot(rewindUndoSnapshot);
 		DecodeVideoFrame(rewindUndoSnapshot.GPU_CompressedFramePacket, core->gpu->frameBuffer);
 	}
-	else
+	else if (GemConfig::Get().RewindClearBufferOnStop)
 	{
 		ClearBuffer();
 	}
@@ -577,7 +606,7 @@ bool RewindManager::StopRewind(bool continueFromStart)
 	isRewinding = false;
 }
 
-bool RewindManager::CompressData(const uint8_t* uncompressed_data, int len, std::vector<uint8_t>& output_buffer)
+bool RewindManager::CompressData(const uint8_t* uncompressed_data, int len, vector<uint8_t>& output_buffer)
 {
 	bool successful = true;
 
@@ -611,7 +640,7 @@ bool RewindManager::CompressData(const uint8_t* uncompressed_data, int len, std:
 	return successful;
 }
 
-bool RewindManager::DecompressData(const uint8_t* compressed_data, int len, std::vector<uint8_t>& output_buffer)
+bool RewindManager::DecompressData(const uint8_t* compressed_data, int len, vector<uint8_t>& output_buffer)
 {
 	bool successful = true;
 
@@ -775,9 +804,9 @@ bool RewindManager::DecodeVideoFrame(const AVPacket* packet, ColourBuffer& outpu
 	return false;
 }
 
-std::string RewindManager::GetStatsSummary() const
+string RewindManager::GetStatsSummary() const
 {
-	std::stringstream ss;
+	stringstream ss;
 
 	float ratio_avg = 0;
 	float size_avg = 0;
@@ -796,9 +825,9 @@ std::string RewindManager::GetStatsSummary() const
 	ratio_avg = ratio_avg / buffer.size();
 	size_avg = size_avg / buffer.size();
 
-	ss << "Buffer size:                     " << (totalBufferSize / 1024) << " kB" << std::endl;
-	ss << "Average frame compression ratio: " << ratio_avg << std::endl;
-	ss << "Average frame compressed size:   " << size_avg << " bytes" << std::endl;
+	ss << "Buffer size:                     " << (totalBufferSize / 1024) << " kB" << endl;
+	ss << "Average frame compression ratio: " << ratio_avg << endl;
+	ss << "Average frame compressed size:   " << size_avg << " bytes" << endl;
 
 	return ss.str();
 }
@@ -841,4 +870,232 @@ int RewindSnapshot::Size() const
 int RewindSnapshot::CompressedFrameSize() const
 {
 	return GPU_CompressedFramePacket ? GPU_CompressedFramePacket->size : 0;
+}
+
+bool RewindSnapshot::WriteToStream(ostream& output, streamsize& count)
+{
+#define WRITE(src, size) output.write(reinterpret_cast<char*>(src), size); if (output.good()) { count += size; } else { return false; }
+	int size_prefix;
+
+	// Z80 state
+	WRITE(&Z80_PC, sizeof(Z80_PC));
+	WRITE(&Z80_SP, sizeof(Z80_SP));
+	WRITE(&Z80_bCGB, sizeof(Z80_bCGB));
+	WRITE(&Z80_interruptMasterEnable, sizeof(Z80_interruptMasterEnable));
+	WRITE(&Z80_isStopped, sizeof(Z80_isStopped));
+	WRITE(&Z80_isHalted, sizeof(Z80_isHalted));
+	WRITE(&Z80_registerFile[0], 8);
+
+	// InterruptCtl
+	WRITE(&IRCtl_VBlankEnabled, sizeof(IRCtl_VBlankEnabled));
+	WRITE(&IRCtl_LCDStatusEnabled, sizeof(IRCtl_LCDStatusEnabled));
+	WRITE(&IRCtl_TimerEnabled, sizeof(IRCtl_TimerEnabled));
+	WRITE(&IRCtl_SerialEnabled, sizeof(IRCtl_SerialEnabled));
+	WRITE(&IRCtl_JoypadEnabled, sizeof(IRCtl_JoypadEnabled));
+	WRITE(&IRCtl_EnableRegisterByte, sizeof(IRCtl_EnableRegisterByte));
+	WRITE(&IRCtl_VBlankRequested, sizeof(IRCtl_VBlankRequested));
+	WRITE(&IRCtl_LCDStatusRequested, sizeof(IRCtl_LCDStatusRequested));
+	WRITE(&IRCtl_TimerRequested, sizeof(IRCtl_TimerRequested));
+	WRITE(&IRCtl_SerialRequested, sizeof(IRCtl_SerialRequested));
+	WRITE(&IRCtl_JoypadRequested, sizeof(IRCtl_JoypadRequested));
+
+	// MMU
+	WRITE(&MMU_bCGB, sizeof(MMU_bCGB));
+	WRITE(&MMU_hram[0], 128);
+
+	size_prefix = MMU_CompressedWRAM.size();
+	WRITE(&size_prefix, sizeof(size_prefix));
+	WRITE(MMU_CompressedWRAM.data(), size_prefix);
+
+	// MBC
+	WRITE(&MBC_cp, sizeof(MBC_cp));
+	WRITE(&MBC_bankingMode, sizeof(MBC_bankingMode));
+	WRITE(&MBC_romBank, sizeof(MBC_romBank));
+	WRITE(&MBC_romOffset, sizeof(MBC_romOffset));
+	WRITE(&MBC_exRAMEnabled, sizeof(MBC_exRAMEnabled));
+	WRITE(&MBC_extRAMBank, sizeof(MBC_extRAMBank));
+	WRITE(&MBC_numExtRAMBanks, sizeof(MBC_numExtRAMBanks));
+	WRITE(&MBC_rtcEnabled, sizeof(MBC_rtcEnabled));
+	WRITE(&MBC_zeroSeen, sizeof(MBC_zeroSeen));
+	WRITE(&MBC_latchedRTCRegister, sizeof(MBC_latchedRTCRegister));
+	WRITE(&MBC_dayCtr, sizeof(MBC_dayCtr));
+	WRITE(&MBC_lastLatchedTime, sizeof(MBC_lastLatchedTime));
+	WRITE(&MBC_daysOverflowed, sizeof(MBC_daysOverflowed));
+
+	// Skipping external RAM
+	
+	
+	// CGBRegisters
+	WRITE(&CGBReg_wramBank, sizeof(CGBReg_wramBank));
+	WRITE(&CGBReg_wramOffset, sizeof(CGBReg_wramOffset));
+	WRITE(&CGBReg_prepareSpeedSwitch, sizeof(CGBReg_prepareSpeedSwitch));
+	WRITE(&CGBReg_currentSpeed, sizeof(CGBReg_currentSpeed));
+
+	// TimerController
+	WRITE(&TmrCtl_Divider, sizeof(TmrCtl_Divider));
+	WRITE(&TmrCtl_Counter, sizeof(TmrCtl_Counter));
+	WRITE(&TmrCtl_Modulo, sizeof(TmrCtl_Modulo));
+	WRITE(&TmrCtl_Speed, sizeof(TmrCtl_Speed));
+	WRITE(&TmrCtl_TACRegisterByte, sizeof(TmrCtl_TACRegisterByte));
+	WRITE(&TmrCtl_Running, sizeof(TmrCtl_Running));
+	WRITE(&TmrCtl_bCGB, sizeof(TmrCtl_bCGB));
+	WRITE(&TmrCtl_divAcc, sizeof(TmrCtl_divAcc));
+	WRITE(&TmrCtl_ctrAcc, sizeof(TmrCtl_ctrAcc));
+	WRITE(&TmrCtl_tCyclesPerCtrCycle, sizeof(TmrCtl_tCyclesPerCtrCycle));
+
+	// SerialController
+	WRITE(&SerialCtl_TxStart, sizeof(SerialCtl_TxStart));
+	WRITE(&SerialCtl_ShiftClockType, sizeof(SerialCtl_ShiftClockType));
+	WRITE(&SerialCtl_RegisterByte, sizeof(SerialCtl_RegisterByte));
+
+	// GPU
+	WRITE(&GPU_bCGB, sizeof(GPU_bCGB));
+	WRITE(&GPU_tAcc, sizeof(GPU_tAcc));
+	WRITE(&GPU_vramBank, sizeof(GPU_vramBank));
+	WRITE(&GPU_vramOffset, sizeof(GPU_vramOffset));
+	WRITE(&GPU_dma, sizeof(GPU_dma));
+	WRITE(&GPU_dmaSrc, sizeof(GPU_dmaSrc));
+	WRITE(&GPU_dmaDest, sizeof(GPU_dmaDest));
+	WRITE(&GPU_control, sizeof(GPU_control));
+	WRITE(&GPU_positions, sizeof(GPU_positions));
+	WRITE(&GPU_stat, sizeof(GPU_stat));
+	WRITE(&GPU_bgMonoPalette, sizeof(MonochromePalette));
+	WRITE(&GPU_sprMonoPalettes[0], sizeof(MonochromePalette) * 2);
+	WRITE(&GPU_bgColourPalette, sizeof(ColourPalette));
+	WRITE(&GPU_sprColourPalette, sizeof(ColourPalette));
+	WRITE(&GPU_correctionMode, sizeof(GPU_correctionMode));
+	WRITE(&GPU_brightness, sizeof(GPU_brightness));
+
+	///////
+	// VRAM
+	size_prefix = GPU_CompressedVRAM.size();
+	WRITE(&size_prefix, sizeof(size_prefix));
+	WRITE(GPU_CompressedVRAM.data(), size_prefix);
+
+	///////
+	// OAM
+	WRITE(&GPU_oam[0], GPU::OAMSize);
+
+	///////
+	// Sprites
+	size_prefix = GPU_CompressedSprites.size();
+	WRITE(&size_prefix, sizeof(size_prefix));
+	WRITE(GPU_CompressedSprites.data(), size_prefix);
+
+	return true;
+}
+
+bool RewindSnapshot::ReadFromStream(istream& input, streamsize& count)
+{
+#define READ(dest, size) input.read(reinterpret_cast<char*>(dest), size); if (input.good()) { count += size; } else { return false; }
+
+	int size_prefix;
+
+	// Z80 state
+
+	READ(&Z80_PC, sizeof(Z80_PC));
+	READ(&Z80_SP, sizeof(Z80_SP));
+	READ(&Z80_bCGB, sizeof(Z80_bCGB));
+	READ(&Z80_interruptMasterEnable, sizeof(Z80_interruptMasterEnable));
+	READ(&Z80_isStopped, sizeof(Z80_isStopped));
+	READ(&Z80_isHalted, sizeof(Z80_isHalted));
+	READ(&Z80_registerFile[0], 8);
+
+	// InterruptCtl
+	READ(&IRCtl_VBlankEnabled, sizeof(IRCtl_VBlankEnabled));
+	READ(&IRCtl_LCDStatusEnabled, sizeof(IRCtl_LCDStatusEnabled));
+	READ(&IRCtl_TimerEnabled, sizeof(IRCtl_TimerEnabled));
+	READ(&IRCtl_SerialEnabled, sizeof(IRCtl_SerialEnabled));
+	READ(&IRCtl_JoypadEnabled, sizeof(IRCtl_JoypadEnabled));
+	READ(&IRCtl_EnableRegisterByte, sizeof(IRCtl_EnableRegisterByte));
+	READ(&IRCtl_VBlankRequested, sizeof(IRCtl_VBlankRequested));
+	READ(&IRCtl_LCDStatusRequested, sizeof(IRCtl_LCDStatusRequested));
+	READ(&IRCtl_TimerRequested, sizeof(IRCtl_TimerRequested));
+	READ(&IRCtl_SerialRequested, sizeof(IRCtl_SerialRequested));
+	READ(&IRCtl_JoypadRequested, sizeof(IRCtl_JoypadRequested));
+
+	// MMU
+	READ(&MMU_bCGB, sizeof(MMU_bCGB));
+	READ(&MMU_hram[0], 128);
+
+	READ(&size_prefix, sizeof(size_prefix));
+	MMU_CompressedWRAM.resize(size_prefix);
+	READ(MMU_CompressedWRAM.data(), size_prefix);
+
+	// MBC
+	READ(&MBC_cp, sizeof(MBC_cp));
+	READ(&MBC_bankingMode, sizeof(MBC_bankingMode));
+	READ(&MBC_romBank, sizeof(MBC_romBank));
+	READ(&MBC_romOffset, sizeof(MBC_romOffset));
+	READ(&MBC_exRAMEnabled, sizeof(MBC_exRAMEnabled));
+	READ(&MBC_extRAMBank, sizeof(MBC_extRAMBank));
+	READ(&MBC_numExtRAMBanks, sizeof(MBC_numExtRAMBanks));
+	READ(&MBC_rtcEnabled, sizeof(MBC_rtcEnabled));
+	READ(&MBC_zeroSeen, sizeof(MBC_zeroSeen));
+	READ(&MBC_latchedRTCRegister, sizeof(MBC_latchedRTCRegister));
+	READ(&MBC_dayCtr, sizeof(MBC_dayCtr));
+	READ(&MBC_lastLatchedTime, sizeof(MBC_lastLatchedTime));
+	READ(&MBC_daysOverflowed, sizeof(MBC_daysOverflowed));
+
+	// Skipping external RAM
+
+
+	// CGBRegisters
+	READ(&CGBReg_wramBank, sizeof(CGBReg_wramBank));
+	READ(&CGBReg_wramOffset, sizeof(CGBReg_wramOffset));
+	READ(&CGBReg_prepareSpeedSwitch, sizeof(CGBReg_prepareSpeedSwitch));
+	READ(&CGBReg_currentSpeed, sizeof(CGBReg_currentSpeed));
+
+	// TimerController
+	READ(&TmrCtl_Divider, sizeof(TmrCtl_Divider));
+	READ(&TmrCtl_Counter, sizeof(TmrCtl_Counter));
+	READ(&TmrCtl_Modulo, sizeof(TmrCtl_Modulo));
+	READ(&TmrCtl_Speed, sizeof(TmrCtl_Speed));
+	READ(&TmrCtl_TACRegisterByte, sizeof(TmrCtl_TACRegisterByte));
+	READ(&TmrCtl_Running, sizeof(TmrCtl_Running));
+	READ(&TmrCtl_bCGB, sizeof(TmrCtl_bCGB));
+	READ(&TmrCtl_divAcc, sizeof(TmrCtl_divAcc));
+	READ(&TmrCtl_ctrAcc, sizeof(TmrCtl_ctrAcc));
+	READ(&TmrCtl_tCyclesPerCtrCycle, sizeof(TmrCtl_tCyclesPerCtrCycle));
+
+	// SerialController
+	READ(&SerialCtl_TxStart, sizeof(SerialCtl_TxStart));
+	READ(&SerialCtl_ShiftClockType, sizeof(SerialCtl_ShiftClockType));
+	READ(&SerialCtl_RegisterByte, sizeof(SerialCtl_RegisterByte));
+
+	// GPU
+	READ(&GPU_bCGB, sizeof(GPU_bCGB));
+	READ(&GPU_tAcc, sizeof(GPU_tAcc));
+	READ(&GPU_vramBank, sizeof(GPU_vramBank));
+	READ(&GPU_vramOffset, sizeof(GPU_vramOffset));
+	READ(&GPU_dma, sizeof(GPU_dma));
+	READ(&GPU_dmaSrc, sizeof(GPU_dmaSrc));
+	READ(&GPU_dmaDest, sizeof(GPU_dmaDest));
+	READ(&GPU_control, sizeof(GPU_control));
+	READ(&GPU_positions, sizeof(GPU_positions));
+	READ(&GPU_stat, sizeof(GPU_stat));
+	READ(&GPU_bgMonoPalette, sizeof(MonochromePalette));
+	READ(&GPU_sprMonoPalettes[0], sizeof(MonochromePalette) * 2);
+	READ(&GPU_bgColourPalette, sizeof(ColourPalette));
+	READ(&GPU_sprColourPalette, sizeof(ColourPalette));
+	READ(&GPU_correctionMode, sizeof(GPU_correctionMode));
+	READ(&GPU_brightness, sizeof(GPU_brightness));
+
+	///////
+	// VRAM
+	READ(&size_prefix, sizeof(size_prefix));
+	GPU_CompressedVRAM.resize(size_prefix);
+	READ(GPU_CompressedVRAM.data(), size_prefix);
+
+	///////
+	// OAM
+	READ(&GPU_oam[0], GPU::OAMSize);
+
+	///////
+	// Sprites
+	READ(&size_prefix, sizeof(size_prefix));
+	GPU_CompressedSprites.resize(size_prefix);
+	READ(GPU_CompressedSprites.data(), size_prefix);
+
+	return true;
 }

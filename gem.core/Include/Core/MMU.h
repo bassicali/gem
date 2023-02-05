@@ -23,8 +23,6 @@ class MMU : public IMMU, public std::enable_shared_from_this<MMU>
 		MMU();
 		void Reset(bool bCGB);
 		bool SetCartridge(std::shared_ptr<CartridgeReader> ptr);
-		void SaveGame();
-		void Shutdown();
 
 		virtual uint8_t ReadByte(uint16_t addr) override;
 		uint16_t ReadWord(uint16_t addr);
@@ -45,6 +43,7 @@ class MMU : public IMMU, public std::enable_shared_from_this<MMU>
 		void SetAPU(std::shared_ptr<APU> ptr);
 		void SetJoypad(std::shared_ptr<Joypad> ptr);
 
+		MBC& GetMemoryBankController() { return mbc; }
 		std::shared_ptr<InterruptController> GetInterruptController() { return interrupts; } 
 		TimerController& GetTimerController() { return timer; }
 		CGBRegisters& GetCGBRegisters() { return cgb_state; }

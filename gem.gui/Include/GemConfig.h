@@ -41,6 +41,9 @@ struct GemConfig
 	bool RewindEnabled;
 	float RewindBufferDuration;
 	int RewindFramesBetweenSnapshots;
+	int RewindKey;
+	int RewindUndoKey;
+	bool RewindClearBufferOnStop;
 
 	static GemConfig& Get();
 };

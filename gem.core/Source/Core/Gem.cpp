@@ -51,7 +51,7 @@ void Gem::Reset(bool bCGB)
 
 void Gem::Shutdown()
 {
-	mmu->Shutdown();
+	
 }
 
 void Gem::LoadRom(const char* file)

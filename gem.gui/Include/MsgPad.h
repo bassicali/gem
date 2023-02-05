@@ -50,7 +50,10 @@ struct MsgPad
 
     bool EmulationPaused;
     bool RewindActive;
+    bool RecordRewindBuffer;
     bool PrintRewindStats;
+
+    bool UpdateGemSave;
 
     bool Reset;
     bool Shutdown;

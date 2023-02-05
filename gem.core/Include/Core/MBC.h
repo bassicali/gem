@@ -1,12 +1,12 @@
 #pragma once
 
 #include <memory>
+#include <ios>
+#include <fstream>
 #include <cstdint>
 
 #include "DArray.h"
 #include "Core/CartridgeReader.h"
-
-#define _GEM_SAVE_GAME_HEADER "**GEM_SAVE_GAME**"
 
 enum class BankingMode
 {
@@ -27,8 +27,8 @@ public:
 	uint8_t ReadByteExtRAM(uint16_t addr);
 	void WriteByteExtRAM(uint16_t addr, uint8_t value);
 
-	bool LoadSaveGame();
-	void WriteSaveGame();
+	bool LoadExternalRAM(std::ifstream& input, std::streamsize& read_count);
+	bool SaveExternalRAM(std::ofstream& output, std::streamsize& write_count);
 
 	bool IsCartridgeTypeSupported(CartridgeType type) const;
 	int GetROMOffset() const { return romOffset; };

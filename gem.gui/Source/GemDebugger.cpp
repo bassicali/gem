@@ -20,6 +20,7 @@
 #include "Util.h"
 #include "MsgPad.h"
 #include "GemDebugger.h"
+#include <GemConfig.h>
 
 using namespace std;
 using namespace GemUtil;
@@ -806,6 +807,9 @@ void GemDebugger::LayoutWidgets()
 		}
 
 		ImGui::SameLine();
+		ImGui::Checkbox("Rewind buffer", &GMsgPad.RecordRewindBuffer);
+
+		ImGui::SameLine();
 		ImVec2 pos = ImGui::GetCursorScreenPos();
 		ImGui::SetCursorScreenPos(ImVec2(pos.x + 20, pos.y));
 		if (ImGui::Button("Open..."))
@@ -827,7 +831,7 @@ void GemDebugger::LayoutWidgets()
 		ImGui::SameLine();
 		if (ImGui::Button("Save"))
 		{
-			core->GetMMU()->SaveGame();
+			GMsgPad.UpdateGemSave = true;
 			LOG_CONS("Game saved");
 		}
 
@@ -1339,22 +1343,13 @@ void GemDebugger::HandleConsoleCommand(Command& cmd, GemConsole& console)
 		}
 		case CommandType::Save:
 		{
-			shared_ptr<CartridgeReader> cart = core->GetCartridgeReader();
-			if (cart)
+			if (!core->GetCartridgeReader())
 			{
-				if (cart->Properties().ExtRamHasBattery)
-				{
-					core->GetMMU()->SaveGame();
-					console.PrintLn("Save-game written to %s", core->GetCartridgeReader()->SaveGameFile().c_str());
-				}
-				else
-				{
-					console.PrintLn("This cartridge type cannot create a save-game");
-				}
+				console.PrintLn("No cartridge");
 			}
 			else
 			{
-				console.PrintLn("No cartridge");
+				GMsgPad.UpdateGemSave = true;
 			}
 
 			break;

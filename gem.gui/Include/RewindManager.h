@@ -5,53 +5,29 @@
 #include <vector>
 #include <optional>
 #include <string>
+#include <ostream>
+#include <istream>
 
 #include <windows.h>
 #include <compressapi.h>
 
 #include "Colour.h"
-#include "Core/MMU.h"
+#include "Core/GPURegisters.h"
+#include "Core/MBC.h"
 #include "Core/CartridgeReader.h"
+#include "Core/CGBRegisters.h"
 
 class Gem;
 class AVCodecContext;
 class AVFrame;
 class AVPacket;
 
-template <class TPtr>
-struct MovablePointer
-{
-	TPtr* Ptr;
-
-	MovablePointer()
-		: Ptr(nullptr)
-	{
-	}
-
-	MovablePointer(const TPtr* p)
-	{
-		Ptr = p;
-	}
-
-	MovablePointer(MovablePointer<TPtr>&& other)
-	{
-		Ptr = other.Ptr;
-		other.Ptr = nullptr;
-	}
-
-	MovablePointer<TPtr>& operator=(MovablePointer<TPtr>&& other)
-	{
-		Ptr = other.Ptr;
-		other.Ptr = nullptr;
-	}
-};
-
 struct RewindSnapshot
 {
 	int Size() const;
 	int CompressedFrameSize() const;
-
-	//void RewindSnapshot::MoveTo(RewindSnapshot& other);
+	bool WriteToStream(std::ostream& output, std::streamsize& count);
+	bool ReadFromStream(std::istream& input, std::streamsize& count);
 
 	RewindSnapshot();
 	~RewindSnapshot();
@@ -152,8 +128,6 @@ struct RewindSnapshot
 
 };
 
-typedef DArray<RewindSnapshot> RewindBuffer;
-
 class RewindManager
 {
 public:
@@ -178,12 +152,14 @@ public:
 	bool StopRewind(bool continueFromStart);
 	bool IsRewinding() const { return isRewinding; }
 
+	bool LoadFromGemSave(std::istream& input, std::streamsize& count);
+	bool WriteToGemSave(std::ostream& output, std::streamsize& count);
+
 	std::string GetStatsSummary() const;
 
 private:
-	
 	void ApplySnapshot(const RewindSnapshot& snapshot);
-	void GetSnapshot(RewindSnapshot& snapshot);
+	void GetSnapshot(RewindSnapshot& snapshot, bool include_frame_buffer = true);
 
 	bool CompressData(const uint8_t* data, int len, std::vector<uint8_t>& output_buffer);
 	bool DecompressData(const uint8_t* data, int len, std::vector<uint8_t>& output_buffer);

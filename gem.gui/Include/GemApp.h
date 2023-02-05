@@ -12,6 +12,8 @@
 #include "GemConsole.h"
 #include "RewindManager.h"
 
+#define _GEM_SAVE_GAME_HEADER "**GEM_SAVE_GAME**"
+
 class GemApp
 {
 	public:
@@ -24,7 +26,9 @@ class GemApp
 		const Gem& GetCore() const { return core; }
 
 	private:
-
+		
+		bool LoadGemSave();
+		bool WriteGemSave();
 		bool ShouldEmulateCGBMode();
 		
 		GemSoundStream sound;
@@ -49,4 +53,5 @@ class GemApp
 
 		ColourBuffer rewindFrame;
 		RewindManager rewind;
+		bool recordRewindBuffer;
 };

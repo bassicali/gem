@@ -48,6 +48,9 @@ GemConfig::GemConfig()
 	, RewindEnabled(true)
 	, RewindBufferDuration(10.0f)
 	, RewindFramesBetweenSnapshots(2)
+	, RewindKey('r')
+	, RewindUndoKey('t')
+	, RewindClearBufferOnStop(true)
 {
 	Colour0 = GemPalette::Black();
 	Colour1 = GemPalette::DarkGrey();
@@ -84,6 +87,9 @@ void GemConfig::Save()
 		WRITE_SETTING(RewindEnabled);
 		WRITE_SETTING(RewindBufferDuration);
 		WRITE_SETTING(RewindFramesBetweenSnapshots);
+		WRITE_SETTING(RewindKey);
+		WRITE_SETTING(RewindUndoKey);
+		WRITE_SETTING(RewindClearBufferOnStop);
 
 		WRITE_HEX_SETTING(UpKey);
 		WRITE_HEX_SETTING(DownKey);
@@ -143,6 +149,9 @@ void GemConfig::Load(std::istream& stream)
 				PARSE_BOOL(key, value, RewindEnabled)
 				PARSE_FLOAT(key, value, RewindBufferDuration)
 				PARSE_INT(key, value, RewindFramesBetweenSnapshots)
+				PARSE_INT(key, value, RewindKey)
+				PARSE_INT(key, value, RewindUndoKey)
+				PARSE_BOOL(key, value, RewindClearBufferOnStop)
 
 				PARSE_INT(key, value, UpKey)
 				PARSE_INT(key, value, DownKey)

@@ -106,7 +106,7 @@ struct ColourPalette
 
 	ColourPalette& operator=(const ColourPalette& other);
 
-	std::string Name;
+	char Name[16];
 
 	// Addresses 1 of 64 bytes inside the palette data memory. Each 2 bytes define 1 colour for a total of 32 colours. 
 	uint8_t PaletteIndex = 0;

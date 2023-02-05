@@ -178,8 +178,9 @@ ColourPalette::ColourPalette()
 }
 
 ColourPalette::ColourPalette(string name)
-	: Name(name)
 {
+	name.copy(Name, std::min<int>(name.length(), 15));
+	Name[15] = '\0';
 	Reset();
 }
 
@@ -264,7 +265,7 @@ const GemColour& ColourPalette::GetColour(int palette, int colour_number)
 
 ColourPalette& ColourPalette::operator=(const ColourPalette& other)
 {
-	Name = other.Name;
+	memcpy(Name, other.Name, 16);
 	PaletteIndex = other.PaletteIndex;
 	IndexAutoIncrement = other.IndexAutoIncrement;
 	PaletteIndexRegisterByte = other.PaletteIndexRegisterByte;

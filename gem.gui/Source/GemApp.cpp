@@ -18,11 +18,12 @@ namespace fs = std::filesystem;
 
 using namespace GemUtil;
 
-bool T_key_down = false;
+bool undo_key_down = false;
 
 GemApp::GemApp()
 	: mainWindow(nullptr)
 	, core()
+	, recordRewindBuffer(false)
 	, rewindFrame(GPU::LCDWidth, GPU::LCDHeight)
 {
 }
@@ -131,12 +132,13 @@ bool GemApp::Init(vector<string> args)
 		GMsgPad.Disassemble.State = DisassemblyRequestState::Requested;
 	}
 
+	// Need to init rewind first in order to load from gem save in InitCore()
 	if (GemConfig::Get().RewindEnabled)
 	{
+		recordRewindBuffer = true;
 		auto& config = GemConfig::Get();
 		int rw_buff_count = (int)floor(config.RewindBufferDuration * (60 / config.RewindFramesBetweenSnapshots));
 		rewind.ResizeBuffer(rw_buff_count);
-		rewind.SetCore(&core);
 		rewind.InitVideoCodec();
 	}
 
@@ -187,6 +189,13 @@ bool GemApp::InitCore()
 		core.Reset(ShouldEmulateCGBMode());
 	}
 
+	rewind.SetCore(&core);
+
+	if (core.GetCartridgeReader()->SaveGameFileExists())
+	{
+		LoadGemSave();
+	}
+
 	GMsgPad.EmulationPaused = GemConfig::Get().PauseAfterOpen || GMsgPad.ROMPath.empty();
 
 	if (debugger.IsInitialized())
@@ -202,11 +211,127 @@ void GemApp::Shutdown()
 	if (!GemConfig::Get().NoSound)
 		sound.Shutdown();
 	
+	if (core.GetCartridgeReader()->SaveGameFile().length() > 0)
+		WriteGemSave();
+
 	core.Shutdown();
 	rewind.Shutdown();
 
 	if (TTF_WasInit())
 		TTF_Quit();
+}
+
+class CheckSumFileStream : public ifstream
+{
+
+};
+
+bool GemApp::LoadGemSave()
+{
+#define READ(ptr, size) fin.read(reinterpret_cast<char*>(ptr), size); if (fin.good()) { count += size; } else { LOG_ERROR("Gem save file is invalid"); return false; }
+	LOG_DEBUG("Reading gem save file: %s", core.GetCartridgeReader()->SaveGameFile().c_str());
+
+	ifstream fin(core.GetCartridgeReader()->SaveGameFile().c_str(), ios::binary);
+	streamsize count = 0;
+	char header[19];
+	header[18] = '\0';
+
+	READ(header, 18)
+	if (strncmp(header, _GEM_SAVE_GAME_HEADER, 18) != 0)
+	{
+		LOG_ERROR("Invalid header in gem save file: %s", header);
+		return false;
+	}
+
+	streamsize prev = count;
+
+	if (!core.GetMMU()->GetMemoryBankController().LoadExternalRAM(fin, count))
+	{
+		LOG_ERROR("Unable to read external RAM");
+		return false;
+	}
+	LOG_DEBUG("External RAM: %d bytes", count - prev);
+
+	prev = count;
+	if (!rewind.LoadFromGemSave(fin, count))
+	{
+		LOG_ERROR("Unable to read core snapshot");
+		return false;
+	}
+	LOG_DEBUG("Core snapshot: %d bytes", count - prev);
+
+	// Load frame buffer
+	int size;
+	READ(&size, sizeof(int));
+
+	assert(size == sizeof(GemColour) * GPU::LCDWidth * GPU::LCDHeight);
+	assert(core.GetGPU()->GetFrameBuffer().IsAllocated());
+
+	const auto& fb = core.GetGPU()->GetFrameBuffer();
+	void* dest_ptr = (void*)fb.Ptr();
+	prev = count;
+	READ(dest_ptr, fb.Size());
+	if ((count - prev) < size)
+	{
+		LOG_ERROR("Unable to read frame buffer");
+		return false;
+	}
+	LOG_DEBUG("Frame buffer: %d bytes", count - prev);
+
+	LOG_INFO("Gem save loaded (%d bytes)", count);
+#undef READ
+}
+
+
+bool GemApp::WriteGemSave()
+{
+#define WRITE(ptr, size) fout.write(reinterpret_cast<char*>(ptr), size); if (fout.good()) { count += size; } else { LOG_ERROR("Unexpected error writing save game file"); return false; }
+
+	const string& file = core.GetCartridgeReader()->SaveGameFile();
+
+	LOG_DEBUG("Writing gem save file: %s", file.c_str());
+
+	ofstream fout(file.c_str(), ios::binary | ios::trunc);
+	streamsize count = 0;
+
+	WRITE(_GEM_SAVE_GAME_HEADER, 18);
+
+	streamsize prev;
+	
+	prev = count;
+	if (!core.GetMMU()->GetMemoryBankController().SaveExternalRAM(fout, count))
+	{
+		LOG_ERROR("Unable to save external RAM");
+		return false;
+	}
+	LOG_DEBUG("External RAM: %d bytes", count - prev);
+
+	prev = count;
+	if (!rewind.WriteToGemSave(fout, count))
+	{
+		LOG_ERROR("Unable to save core snapshot");
+		return false;
+	}
+	LOG_DEBUG("Core snapshot: %d bytes", count - prev);
+
+	const auto& fb = core.GetGPU()->GetFrameBuffer();
+	int size = fb.Size();
+	WRITE(&size, sizeof(int));
+	
+	assert(fb.IsAllocated());
+	prev = count;
+	GemColour* ptr = const_cast<GemColour*>(fb.Ptr());
+	WRITE(ptr, size);
+	if ((count - prev) < size)
+	{
+		LOG_ERROR("Unable to save frame buffer");
+		return false;
+	}
+	LOG_DEBUG("Frame buffer: %d bytes", count - prev);
+
+	LOG_CONS("Gem save written (%d bytes)", count);
+
+	fout.close();
 }
 
 void GemApp::SetWindowTitles()
@@ -296,20 +421,19 @@ bool GemApp::LoopWork()
 	if (!core.IsROMLoaded())
 		return false;
 
-	if (rewind.IsInitialized())
+	if (GMsgPad.UpdateGemSave)
 	{
-		if (GMsgPad.RewindActive && !rewind.IsRewinding())
-		{
-			rewind.StartRewind();
-			sound.ClearQueue();
-			sound.Pause();
-		}
-		else if (!GMsgPad.RewindActive && rewind.IsRewinding())
-		{
-			rewind.StopRewind(false);
-			sound.Play();
-		}
+		WriteGemSave();
 	}
+
+	// Action on the changes made to the MsgPad by GemDebugger
+	if (!GMsgPad.RecordRewindBuffer && recordRewindBuffer)
+	{
+		rewind.ClearBuffer();
+		recordRewindBuffer = false;
+	}
+
+	recordRewindBuffer = GMsgPad.RecordRewindBuffer;
 
 	if (GMsgPad.PrintRewindStats)
 	{
@@ -317,6 +441,7 @@ bool GemApp::LoopWork()
 		GemConsole::Get().PrintLn("%s", rewind.GetStatsSummary().c_str());
 		GMsgPad.PrintRewindStats = false;
 	}
+
 
 	bool emu_paused = GMsgPad.EmulationPaused;
 	bool present = false;
@@ -357,7 +482,7 @@ bool GemApp::LoopWork()
 	// Skip some frames when adding to the rewind snapshot buffer.
 	// Rewind doesn't need be as fast since the user is just roughly looking for a place to stop.
 	static int rewind_rec_mod = 0;
-	if (present && rewind.IsInitialized() && !rewind.IsRewinding() && (rewind_rec_mod++ % GemConfig::Get().RewindFramesBetweenSnapshots) == 0)
+	if (present && recordRewindBuffer && rewind.IsInitialized() && !rewind.IsRewinding() && (rewind_rec_mod++ % GemConfig::Get().RewindFramesBetweenSnapshots) == 0)
 	{
 		rewind.RecordSnapshot();
 		rewind_rec_mod = 0;
@@ -557,17 +682,20 @@ void GemApp::KeyPressHandler(SDL_KeyboardEvent& ev)
 	else if (ev.keysym.sym == config.StartKey)	core.GetJoypad()->Press(JoypadKey::Start);
 	else if (ev.keysym.sym == config.SelectKey) core.GetJoypad()->Press(JoypadKey::Select);
 
-	if (ev.keysym.sym == SDLK_t && !T_key_down)
+	if (rewind.IsInitialized() && recordRewindBuffer)
 	{
-		T_key_down = true;
-	}
+		if (ev.keysym.sym == config.RewindUndoKey && !undo_key_down)
+		{
+			undo_key_down = true;
+		}
 
-	if (rewind.IsInitialized() && ev.keysym.sym == SDLK_r && !rewind.IsRewinding())
-	{
-		rewind.StartRewind();
-		sound.Pause();
-		sound.ClearQueue();
-		GMsgPad.RewindActive = true;
+		if (ev.keysym.sym == config.RewindKey && !rewind.IsRewinding())
+		{
+			rewind.StartRewind();
+			sound.Pause();
+			sound.ClearQueue();
+			GMsgPad.RewindActive = true;
+		}
 	}
 }
 
@@ -584,18 +712,21 @@ void GemApp::KeyReleaseHandler(SDL_KeyboardEvent& ev)
 	else if (ev.keysym.sym == config.StartKey)	core.GetJoypad()->Release(JoypadKey::Start);
 	else if (ev.keysym.sym == config.SelectKey) core.GetJoypad()->Release(JoypadKey::Select);
 
-	if (ev.keysym.sym == SDLK_t && T_key_down)
+	if (rewind.IsInitialized() && recordRewindBuffer)
 	{
-		T_key_down = false;
-	}
-
-	if (rewind.IsRewinding())
-	{
-		if (ev.keysym.sym == SDLK_r)
+		if (ev.keysym.sym == config.RewindUndoKey && undo_key_down)
 		{
-			rewind.StopRewind(T_key_down);
-			GMsgPad.RewindActive = false;
-			sound.Play();
+			undo_key_down = false;
+		}
+
+		if (rewind.IsRewinding())
+		{
+			if (ev.keysym.sym == config.RewindKey)
+			{
+				rewind.StopRewind(undo_key_down);
+				GMsgPad.RewindActive = false;
+				sound.Play();
+			}
 		}
 	}
 }

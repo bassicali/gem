@@ -44,6 +44,9 @@ void AppLog::LogMessage(bool error, bool console, const char* format, va_list ar
 			GemConsole::Get().ErrorLn(message);
 	}
 
+	OutputDebugStringA(message);
+	OutputDebugStringA("\n");
+
 	static char nl = '\n';
 
 	if (handle)

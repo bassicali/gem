@@ -41,14 +41,6 @@ void MMU::Reset(bool bCGB)
 	mbc.Reset();
 }
 
-void MMU::Shutdown()
-{
-	if (cart && cart->Properties().ExtRamHasBattery)
-	{
-		mbc.WriteSaveGame();
-	}
-}
-
 bool MMU::SetCartridge(std::shared_ptr<CartridgeReader> ptr)
 {
 	if (cart)
@@ -64,12 +56,6 @@ bool MMU::SetCartridge(std::shared_ptr<CartridgeReader> ptr)
 
 	mbc.SetCartridge(cart);
 	return true;
-}
-
-void MMU::SaveGame()
-{
-	if (cart && cart->Properties().ExtRamHasBattery)
-		mbc.WriteSaveGame();
 }
 
 void MMU::SetGPU(std::shared_ptr<GPU> ptr)
